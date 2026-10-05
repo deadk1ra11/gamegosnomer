@@ -1559,7 +1559,7 @@ const _sp2 = spinNumber;
 let _lastSpin = 0;
 spinNumber = function(){
 const n = Date.now();
-if(n - _lastSpin < 250) return;
+if(n - _lastSpin < 50) return;
 _lastSpin = n;
 _sp2();
 };
@@ -3597,5 +3597,537 @@ toast('Номер стоит на модели');
 });
 }});
 }catch(e){ plain(); }
+};
+(function(){
+if(typeof firebase.auth === 'function') return;
+try{
+const x = new XMLHttpRequest();
+x.open('GET', 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js', false);
+x.send();
+(0, eval)(x.responseText);
+}catch(e){ alert('Не загрузился модуль входа: ' + e.message); }
+})();
+let srvOff = 0;
+db.ref('.info/serverTimeOffset').on('value', s=>{ srvOff = s.val() || 0; });
+const sNow = () => Date.now() + srvOff;
+const RLEN = 400;
+let RC = null, RW = null;
+const rcClass = c => { const p = (CARS[c.m] || CARS[0]).p; return p < 3e6 ? 'eco' : p < 3e7 ? 'prem' : 'lux'; };
+const rcTier = c => Math.max(1, 1 + Math.log10((CARS[c.m] || CARS[0]).p / 150000) * 0.9) * (c.low ? 1.05 : 1);
+function openRace(){
+if(!currentUser) return alert('Сначала войдите!');
+if(!garage.length) return alert('Нужна машина: ☰ Ещё → 🛒 Автосалон');
+const st = 'width:100%;padding:10px;margin:4px 0;border-radius:8px;background:#0b0d16;color:#fff;border:1px solid #2b3145;font-size:1rem';
+const opts = garage.map((c,i)=>`<option value="${i}">${esc((CARS[c.m] || CARS[0]).n)} · ${CLS[rcClass(c)][0]}</option>`).join('');
+const bets = [0, 1000, 10000, 100000, 1000000].map(b=>`<option value="${b}">${b ? 'Ставка ' + formatMoney(b) : 'Без ставки'}</option>`).join('');
+box('race-modal', '<h3>🏁 Гонки 400 м</h3><p style="font-size:0.85rem;color:#aaa">Поверни телефон горизонтально и жми на экран как можно чаще. Соперник того же класса. Победитель забирает обе ставки.</p><select id="rc-car" style="' + st + '">' + opts + '</select><select id="rc-bet" style="' + st + '">' + bets + '</select><button onclick="rcFind()">🔎 Найти соперника</button><button onclick="rcBot()" style="background:#555">🤖 Тренировка с ботом</button>');
+}
+function rcCancel(){
+if(RW){ RW.w.off(); RW.ref.child(RW.me).remove(); clearTimeout(RW.t); RW = null; }
+closeModal('race-wait');
+}
+function rcBot(){
+const c = garage[+document.getElementById('rc-car').value];
+if(!c) return;
+const pw = rcTier(c);
+closeModal('race-modal');
+RC = {bot:{pw:pw * (0.85 + Math.random()*0.3), v:0, d:0, rate:5.5 + Math.random()*2}, bet:0, go:sNow() + 4000, my:{d:0, v:0}, o:{d:0, v:0, t:0}, pw:pw, oname:'Бот', ocol:'#7f8c8d', col:c.color, over:false, last:0, send:0};
+rcOverlay();
+requestAnimationFrame(rcLoop);
+}
+function rcFind(){
+const c = garage[+document.getElementById('rc-car').value], bet = +document.getElementById('rc-bet').value;
+if(!c) return;
+if(balance < bet) return alert('Недостаточно денег для ставки');
+const me = ukey(currentUser), qk = rcClass(c) + '_' + bet;
+const mine = {k:me, name:currentUser, col:c.color, pw:rcTier(c), t:Date.now()};
+box('race-wait', '<h3>🔎 Ищу соперника...</h3><p style="color:#aaa">Класс: ' + CLS[rcClass(c)][0] + ' · ' + (bet ? formatMoney(bet) : 'без ставки') + '</p><button onclick="rcCancel()" style="background:#555">Отмена</button>');
+const ref = db.ref('raceq/' + qk);
+ref.once('value').then(s=>{
+let f = null;
+s.forEach(ch=>{ const v = ch.val(); if(!f && ch.key !== me && v && !v.room && Date.now() - v.t < 45000) f = {k:ch.key, v:v}; });
+if(f){
+db.ref('raceq/' + qk + '/' + f.k + '/room').transaction(r => r ? undefined : 'pending').then(res=>{
+if(!res.committed) return rcFind();
+const id = db.ref('races').push().key, room = {a:f.v, b:mine, bet:bet, go:sNow() + 6000};
+db.ref('races/' + id).set(room).then(()=>{
+db.ref('raceq/' + qk + '/' + f.k + '/room').set(id);
+rcStart(id, 'b', room);
+});
+});
+}else{
+ref.child(me).set(mine);
+const w = ref.child(me + '/room');
+RW = {ref:ref, me:me, w:w, t:setTimeout(()=>{ rcCancel(); toast('Соперник не найден, попробуй ещё'); }, 40000)};
+w.on('value', s2=>{
+const id = s2.val();
+if(!id || id === 'pending') return;
+clearTimeout(RW.t); w.off(); ref.child(me).remove(); RW = null;
+db.ref('races/' + id).once('value').then(r=>rcStart(id, 'a', r.val()));
+});
+}
+});
+}
+function rcStart(id, side, room){
+closeModal('race-wait'); closeModal('race-modal');
+const opp = side === 'a' ? 'b' : 'a';
+if(room.bet) updateBalance(-room.bet);
+RC = {id:id, side:side, opp:opp, bet:room.bet, go:room.go, my:{d:0, v:0}, o:{d:0, v:0, t:0}, pw:room[side].pw, oname:room[opp].name, ocol:room[opp].col, col:room[side].col, over:false, last:0, send:0};
+db.ref('races/' + id + '/pos/' + opp).on('value', s=>{ const v = s.val(); if(v && RC) RC.o = {d:v.d, v:v.v, t:Date.now()}; });
+db.ref('races/' + id + '/res/' + opp).on('value', s=>{ const v = s.val(); if(v != null && RC) RC.ofin = v; });
+rcOverlay();
+requestAnimationFrame(rcLoop);
+}
+function rcOverlay(){
+const o = document.createElement('div');
+o.id = 'race-ov';
+o.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:#0b1220;z-index:100001;touch-action:manipulation;user-select:none;-webkit-user-select:none';
+o.innerHTML = '<canvas id="rc-cv" style="width:100%;height:100%;display:block"></canvas><button id="rc-x" style="position:absolute;top:8px;right:8px;width:auto;padding:6px 14px;background:#e74c3c;color:#fff;border:0;border-radius:8px">✕</button><div id="rc-turn" style="display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:#0b1220;color:#fff;font-size:1.3rem;align-items:center;justify-content:center;text-align:center;padding:20px">🔄 Поверни телефон горизонтально</div>';
+document.body.appendChild(o);
+const cv = document.getElementById('rc-cv');
+const fit = ()=>{ cv.width = o.clientWidth; cv.height = o.clientHeight; document.getElementById('rc-turn').style.display = o.clientHeight > o.clientWidth ? 'flex' : 'none'; };
+fit();
+window.addEventListener('resize', fit);
+o.addEventListener('pointerdown', e=>{ if(e.target.id !== 'rc-x') rcTap(); });
+document.getElementById('rc-x').onclick = rcExit;
+try{
+if(o.requestFullscreen) o.requestFullscreen().catch(()=>{});
+if(screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(()=>{});
+}catch(e){}
+}
+function rcTap(){
+if(!RC || RC.over || RC.fin !== undefined) return;
+const n = sNow();
+if(n < RC.go){ RC.lock = RC.go + 700; RC.msg = 'ФАЛЬСТАРТ!'; return; }
+if(n < (RC.lock || 0)) return;
+RC.my.v += 0.6 * RC.pw;
+}
+function rcLoop(ts){
+if(!RC) return;
+const dt = Math.min(0.05, (ts - (RC.last || ts)) / 1000);
+RC.last = ts;
+const n = sNow(), run = n >= RC.go;
+if(run && RC.fin === undefined){
+RC.my.v -= 0.12 * RC.my.v * dt;
+RC.my.d += RC.my.v * dt;
+if(RC.my.d >= RLEN){
+RC.fin = (n - RC.go) / 1000; RC.finAt = Date.now();
+if(RC.id) db.ref('races/' + RC.id + '/res/' + RC.side).set(RC.fin);
+}
+if(RC.id && Date.now() - RC.send > 200){
+RC.send = Date.now();
+db.ref('races/' + RC.id + '/pos/' + RC.side).set({d:Math.round(RC.my.d*10)/10, v:Math.round(RC.my.v*10)/10});
+}
+}
+if(RC.bot && run && RC.ofin === undefined){
+const b = RC.bot;
+if(Math.random() < b.rate * dt) b.v += 0.6 * b.pw;
+b.v -= 0.12 * b.v * dt; b.d += b.v * dt;
+RC.o = {d:b.d, v:b.v, t:Date.now()};
+if(b.d >= RLEN) RC.ofin = (n - RC.go) / 1000;
+}
+rcDraw(n);
+rcCheck();
+if(RC && !RC.over) requestAnimationFrame(rcLoop);
+}
+function rcTap(){
+if(!RC || RC.over || RC.fin !== undefined) return;
+const n = sNow();
+if(n < RC.go){ RC.lock = RC.go + 700; RC.msg = 'ФАЛЬСТАРТ!'; return; }
+if(n < (RC.lock || 0)) return;
+RC.my.v += 0.6 * RC.pw;
+}
+function rcLoop(ts){
+if(!RC) return;
+const dt = Math.min(0.05, (ts - (RC.last || ts)) / 1000);
+RC.last = ts;
+const n = sNow(), run = n >= RC.go;
+if(run && RC.fin === undefined){
+RC.my.v -= 0.12 * RC.my.v * dt;
+RC.my.d += RC.my.v * dt;
+if(RC.my.d >= RLEN){
+RC.fin = (n - RC.go) / 1000; RC.finAt = Date.now();
+if(RC.id) db.ref('races/' + RC.id + '/res/' + RC.side).set(RC.fin);
+}
+if(RC.id && Date.now() - RC.send > 200){
+RC.send = Date.now();
+db.ref('races/' + RC.id + '/pos/' + RC.side).set({d:Math.round(RC.my.d*10)/10, v:Math.round(RC.my.v*10)/10});
+}
+}
+if(RC.bot && run && RC.ofin === undefined){
+const b = RC.bot;
+if(Math.random() < b.rate * dt) b.v += 0.6 * b.pw;
+b.v -= 0.12 * b.v * dt; b.d += b.v * dt;
+RC.o = {d:b.d, v:b.v, t:Date.now()};
+if(b.d >= RLEN) RC.ofin = (n - RC.go) / 1000;
+}
+rcDraw(n);
+rcCheck();
+if(RC && !RC.over) requestAnimationFrame(rcLoop);
+}
+function rcCheck(){
+if(RC.over) return;
+const f = RC.fin, o = RC.ofin;
+let res = null;
+if(f !== undefined && o !== undefined) res = f < o - 0.005 ? 'win' : f > o + 0.005 ? 'lose' : 'draw';
+else if(f !== undefined && !RC.bot && Date.now() - RC.finAt > 12000) res = 'win';
+else if(o !== undefined && f === undefined){ RC.ofinAt = RC.ofinAt || Date.now(); if(Date.now() - RC.ofinAt > 15000) res = 'lose'; }
+if(res) rcEnd(res);
+}
+function rcEnd(res){
+RC.over = true; RC.res = res;
+const bet = RC.bet || 0;
+if(res === 'win'){ if(bet) updateBalance(bet * 2); if(typeof addXp === 'function') addXp(RC.bot ? 10 : 40); }
+else if(res === 'draw' && bet) updateBalance(bet);
+RC.txt = res === 'win' ? '🏆 Победа!' + (bet ? ' +' + formatMoney(bet) : '') : res === 'draw' ? '🤝 Ничья' : '😞 Поражение' + (bet ? ' −' + formatMoney(bet) : '');
+if(RC.id){
+db.ref('races/' + RC.id + '/pos/' + RC.opp).off();
+db.ref('races/' + RC.id + '/res/' + RC.opp).off();
+const id = RC.id;
+setTimeout(()=>db.ref('races/' + id).remove(), 60000);
+}
+rcDraw(sNow());
+}
+function rcExit(){
+if(RC && !RC.over && RC.id && RC.fin === undefined) db.ref('races/' + RC.id + '/res/' + RC.side).set(999);
+if(RC && RC.id){ db.ref('races/' + RC.id + '/pos/' + RC.opp).off(); db.ref('races/' + RC.id + '/res/' + RC.opp).off(); }
+RC = null;
+const o = document.getElementById('race-ov');
+if(o) o.remove();
+try{
+if(document.fullscreenElement) document.exitFullscreen();
+if(screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
+}catch(e){}
+}
+function rcCar(x, cx, cy, col, name){
+x.fillStyle = col;
+x.fillRect(cx - 34, cy - 22, 68, 16);
+x.beginPath(); x.moveTo(cx - 18, cy - 22); x.lineTo(cx - 8, cy - 36); x.lineTo(cx + 12, cy - 36); x.lineTo(cx + 24, cy - 22); x.closePath(); x.fill();
+[-20, 20].forEach(dx=>{
+x.fillStyle = '#111'; x.beginPath(); x.arc(cx + dx, cy - 5, 9, 0, 6.3); x.fill();
+x.fillStyle = '#888'; x.beginPath(); x.arc(cx + dx, cy - 5, 3.5, 0, 6.3); x.fill();
+});
+x.fillStyle = '#fff'; x.font = '12px Arial'; x.textAlign = 'center';
+x.fillText(name, cx, cy - 42);
+}
+function rcDraw(n){
+const cv = document.getElementById('rc-cv');
+if(!cv || !RC) return;
+const x = cv.getContext('2d'), W = cv.width, H = cv.height;
+const g = x.createLinearGradient(0, 0, 0, H*0.45);
+g.addColorStop(0, '#1b2a49'); g.addColorStop(1, '#3b5b8c');
+x.fillStyle = g; x.fillRect(0, 0, W, H*0.45);
+x.fillStyle = '#2b2f36'; x.fillRect(0, H*0.45, W, H*0.55);
+const x0 = 50, x1 = W - 100, ly = [H*0.62, H*0.86];
+x.strokeStyle = '#fff'; x.lineWidth = 2; x.setLineDash([14, 10]);
+x.beginPath(); x.moveTo(0, H*0.74); x.lineTo(W, H*0.74); x.stroke(); x.setLineDash([]);
+x.fillStyle = '#f1c40f'; x.fillRect(x0 - 40, H*0.45, 4, H*0.55);
+x.fillStyle = '#fff'; x.fillRect(x1 + 40, H*0.45, 6, H*0.55);
+const px = d => x0 + Math.min(d, RLEN) / RLEN * (x1 - x0);
+const od = RC.ofin !== undefined && RC.ofin < 900 ? RLEN : Math.min(RLEN, RC.o.d + (RC.o.v || 0) * (Date.now() - RC.o.t) / 1000);
+rcCar(x, px(od), ly[0], RC.ocol, RC.oname);
+rcCar(x, px(RC.my.d), ly[1], RC.col, 'Вы');
+x.textAlign = 'left'; x.fillStyle = '#fff';
+x.font = '700 26px Arial'; x.fillText(Math.round(RC.my.v * 3.6) + ' км/ч', 16, 36);
+x.font = '15px Arial'; x.fillText(Math.round(Math.min(RLEN, RC.my.d)) + ' / ' + RLEN + ' м', 16, 58);
+if(n >= RC.go) x.fillText(((RC.fin !== undefined ? RC.fin : (n - RC.go) / 1000)).toFixed(2) + ' с', 16, 78);
+x.textAlign = 'center'; x.font = '700 64px Arial';
+const c = Math.ceil((RC.go - n) / 1000);
+if(c > 0 && c <= 5) x.fillText(c, W/2, H*0.32);
+else if(n - RC.go < 900) x.fillText('GO!', W/2, H*0.32);
+if(RC.msg && n < RC.go + 700){ x.fillStyle = '#e74c3c'; x.font = '700 30px Arial'; x.fillText(RC.msg, W/2, H*0.4); }
+if(n > RC.go + 900 && n < RC.go + 4000 && RC.my.d < 20){ x.fillStyle = '#f1c40f'; x.font = '700 24px Arial'; x.fillText('ЖМИ НА ЭКРАН!', W/2, H*0.32); }
+if(RC.over){
+x.fillStyle = 'rgba(0,0,0,.65)'; x.fillRect(0, 0, W, H);
+x.fillStyle = '#fff'; x.font = '700 44px Arial'; x.fillText(RC.txt, W/2, H*0.45);
+x.font = '20px Arial'; x.fillText('Нажми ✕, чтобы выйти', W/2, H*0.58);
+}
+}
+const _om5 = openMore;
+openMore = function(){
+_om5();
+const g = document.querySelector('#more-modal .mgrid');
+if(!g) return;
+const b = document.createElement('button');
+b.innerHTML = '<span>🏁</span>Гонки';
+b.onclick = ()=>goTab(openRace);
+g.appendChild(b);
+};
+let RCAR = null;
+const _rf = rcFind;
+rcFind = function(){ RCAR = garage[+document.getElementById('rc-car').value]; _rf(); };
+const GF = [0.20, 0.34, 0.50, 0.66, 0.82, 1.0];
+function rcNew(pw){ return {d:0, v:0, g:1, rpm:1000, gas:false, pw:pw, sT:0, bT:0, nT:0, lT:0, nit:2, rt:null, started:false, lock:0, ang:0}; }
+function rcStep(s, dt, now){
+const vm = 45 * Math.pow(s.pw, 0.75) * GF[s.g - 1];
+const rpmT = Math.max(1000 + 7000 * Math.min(1.03, s.v / vm), s.gas && s.v < vm * 0.25 ? 4500 : 0);
+s.rpm += (rpmT - s.rpm) * Math.min(1, 10 * dt);
+const rf = (s.rpm - 1000) / 7000;
+let a = 0;
+if(s.gas && now >= s.sT){
+const pc = rf < 0.3 ? 0.55 + rf : rf < 0.88 ? 1 : Math.max(0.2, 1 - (rf - 0.88) * 5);
+a = 3.1 * s.pw * (1.9 - 0.15 * (s.g - 1)) * pc * (now < s.bT ? 1.25 : 1) * (now < s.nT ? 1.8 : 1) * (now < s.lT ? 0.55 : 1);
+}
+if(s.v >= vm){ a = 0; s.v = Math.max(s.v - 3 * dt, vm * 0.99); }
+s.v = Math.max(0, s.v + (a - (s.gas ? 0.01 : 0.06) * s.v) * dt);
+s.d += s.v * dt;
+s.ang += s.v * dt * 0.9;
+}
+function rcShift(s, now){
+if(s.g >= 6 || now < s.sT) return null;
+const rf = (s.rpm - 1000) / 7000;
+let q;
+if(rf >= 0.88){ q = 'PERFECT'; s.bT = now + 1500; }
+else if(rf >= 0.75){ q = 'GOOD'; s.bT = now + 700; }
+else{ q = 'EARLY'; s.lT = now + 500; }
+s.g++; s.sT = now + 150;
+return q;
+}
+function rcBotAI(b, dt, now, go){
+if(now < go + b.react){ b.gas = false; return; }
+b.gas = true;
+if((b.rpm - 1000) / 7000 >= b.tgt && b.g < 6){ rcShift(b, now); b.tgt = 0.8 + Math.random() * 0.2; }
+if(b.nit > 0 && b.d > 60 && now >= b.nT){ b.nit--; b.nT = now + 2200; }
+}
+rcStart = function(id, side, room){
+closeModal('race-wait'); closeModal('race-modal');
+const opp = side === 'a' ? 'b' : 'a', c = RCAR || garage[0], m = CARS[c.m] || CARS[0];
+if(room.bet) updateBalance(-room.bet);
+RC = {id:id, side:side, opp:opp, bet:room.bet, go:room.go, my:rcNew(room[side].pw), o:{d:0, v:0, t:0}, oc:{ty:'sedan', lo:0, ne:''}, me:{ty:m.t, lo:c.low ? 1 : 0, ne:c.neon || ''}, oname:room[opp].name, ocol:room[opp].col, col:c.color, over:false, last:0, send:0, wb:0};
+db.ref('races/' + id + '/pos/' + opp).on('value', s=>{
+const v = s.val();
+if(v && RC){ RC.o = {d:v.d, v:v.v, t:Date.now()}; if(v.ty) RC.oc = {ty:v.ty, lo:v.lo, ne:v.ne}; }
+});
+db.ref('races/' + id + '/res/' + opp).on('value', s=>{ const v = s.val(); if(v != null && RC) RC.ofin = v; });
+rcOverlay();
+requestAnimationFrame(rcLoop);
+};
+rcBot = function(){
+const c = garage[+document.getElementById('rc-car').value];
+if(!c) return;
+RCAR = c;
+const m = CARS[c.m] || CARS[0], pw = rcTier(c);
+closeModal('race-modal');
+const b = rcNew(pw * (0.85 + Math.random() * 0.3));
+b.react = 200 + Math.random() * 250; b.tgt = 0.85;
+RC = {bot:b, bet:0, go:sNow() + 6000, my:rcNew(pw), o:{d:0, v:0, t:0}, oc:{ty:['sedan', 'sport', 'suv', 'hatch'][Math.floor(Math.random() * 4)], lo:0, ne:''}, me:{ty:m.t, lo:c.low ? 1 : 0, ne:c.neon || ''}, oname:'Бот', ocol:'#7f8c8d', col:c.color, over:false, last:0, send:0, wb:0};
+rcOverlay();
+requestAnimationFrame(rcLoop);
+};
+function rcMsg(t, c){ if(RC) RC.msg = [t, sNow(), c || '#f1c40f']; }
+function rcGas(on){
+if(!RC || RC.over) return;
+const s = RC.my, n = sNow();
+if(on && n < RC.go){ s.lock = RC.go + 700; rcMsg('КРАСНЫЙ СВЕТ!', '#e74c3c'); }
+s.gas = on;
+}
+function rcShiftBtn(){
+if(!RC || RC.over || sNow() < RC.go) return;
+const q = rcShift(RC.my, sNow());
+if(q) rcMsg(q === 'PERFECT' ? 'ИДЕАЛЬНО!' : q === 'GOOD' ? 'Хорошо' : 'Рано!', q === 'PERFECT' ? '#2ecc71' : q === 'GOOD' ? '#f1c40f' : '#e74c3c');
+}
+function rcNitro(){
+if(!RC || RC.over) return;
+const s = RC.my, n = sNow();
+if(n < RC.go || s.nit <= 0 || n < s.nT) return;
+s.nit--; s.nT = n + 2200;
+rcMsg('NITRO!', '#e67e22');
+}
+rcOverlay = function(){
+const o = document.createElement('div');
+o.id = 'race-ov';
+o.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:#0b1220;z-index:100001;touch-action:none;user-select:none;-webkit-user-select:none';
+const bt = 'position:absolute;border:0;border-radius:50%;color:#fff;font-weight:700;touch-action:none;margin:0;padding:0;line-height:1.1;font-size:0.8rem;box-shadow:0 4px 14px rgba(0,0,0,.6)';
+o.innerHTML = '<canvas id="rc-cv" style="width:100%;height:100%;display:block"></canvas>' +
+'<button id="rc-gas" style="' + bt + ';right:3%;bottom:8%;width:26vmin;height:26vmin;background:linear-gradient(#2ecc71,#1e8449);font-size:1.1rem">ГАЗ</button>' +
+'<button id="rc-sh" style="' + bt + ';left:3%;bottom:8%;width:24vmin;height:24vmin;background:linear-gradient(#3498db,#1f5f8b)">▲<br>ПЕРЕДАЧА</button>' +
+'<button id="rc-n" style="' + bt + ';left:calc(3% + 26vmin);bottom:8%;width:18vmin;height:18vmin;background:linear-gradient(#e67e22,#a04000)">⚡<br>NITRO</button>' +
+'<button id="rc-x" style="position:absolute;top:8px;right:8px;width:auto;padding:6px 14px;background:#e74c3c;color:#fff;border:0;border-radius:8px;margin:0">✕</button>' +
+'<div id="rc-turn" style="display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:#0b1220;color:#fff;font-size:1.3rem;align-items:center;justify-content:center;text-align:center;padding:20px">🔄 Поверни телефон горизонтально</div>';
+document.body.appendChild(o);
+const cv = document.getElementById('rc-cv');
+const fit = ()=>{ cv.width = o.clientWidth; cv.height = o.clientHeight; document.getElementById('rc-turn').style.display = o.clientHeight > o.clientWidth ? 'flex' : 'none'; };
+fit();
+window.addEventListener('resize', fit);
+const on = (id, ev, f)=>document.getElementById(id).addEventListener(ev, e=>{ e.preventDefault(); f(); });
+['pointerup', 'pointercancel', 'pointerleave'].forEach(ev=>on('rc-gas', ev, ()=>rcGas(false)));
+on('rc-gas', 'pointerdown', ()=>rcGas(true));
+on('rc-sh', 'pointerdown', rcShiftBtn);
+on('rc-n', 'pointerdown', rcNitro);
+document.getElementById('rc-x').onclick = rcExit;
+try{
+if(o.requestFullscreen) o.requestFullscreen().catch(()=>{});
+if(screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(()=>{});
+}catch(e){}
+};
+rcLoop = function(ts){
+if(!RC) return;
+const dt = Math.min(0.05, (ts - (RC.last || ts)) / 1000);
+RC.last = ts;
+const n = sNow(), s = RC.my, run = n >= RC.go;
+if(run && RC.fin === undefined){
+const raw = s.gas;
+s.gas = raw && n >= s.lock;
+if(s.gas && !s.started){
+s.started = true; s.rt = (n - RC.go) / 1000;
+if(s.rt < 0.2){ s.bT = n + 1400; rcMsg('ИДЕАЛЬНЫЙ СТАРТ!', '#2ecc71'); }
+else if(s.rt < 0.5){ s.bT = n + 700; rcMsg('ХОРОШИЙ СТАРТ', '#f1c40f'); }
+}
+rcStep(s, dt, n);
+s.gas = raw;
+if(s.d >= RLEN){
+RC.fin = (n - RC.go) / 1000; RC.finAt = Date.now();
+if(RC.id) db.ref('races/' + RC.id + '/res/' + RC.side).set(RC.fin);
+}
+if(RC.id && Date.now() - RC.send > 200){
+RC.send = Date.now();
+db.ref('races/' + RC.id + '/pos/' + RC.side).set({d:Math.round(s.d * 10) / 10, v:Math.round(s.v * 10) / 10, ty:RC.me.ty, lo:RC.me.lo, ne:RC.me.ne});
+}
+}else if(RC.fin !== undefined){ s.gas = false; rcStep(s, dt, n); }
+if(RC.bot && run && RC.ofin === undefined){
+const b = RC.bot;
+rcBotAI(b, dt, n, RC.go);
+rcStep(b, dt, n);
+RC.o = {d:b.d, v:b.v, t:Date.now()};
+if(b.d >= RLEN) RC.ofin = (n - RC.go) / 1000;
+}
+rcDraw(n);
+rcCheck();
+if(RC && !RC.over) requestAnimationFrame(rcLoop);
+};
+const GE = {
+sedan:{b:[[-50,5],[-50,14],[-44,17],[-18,18],[24,17],[46,13],[50,8],[50,5]], c:[[-30,18],[-18,30],[8,30],[28,18]], wx:[-31,31], r:7.5},
+hatch:{b:[[-50,5],[-50,15],[-46,19],[-20,19],[22,17],[46,13],[50,8],[50,5]], c:[[-36,19],[-32,31],[8,31],[26,18]], wx:[-30,31], r:7.5},
+suv:{b:[[-50,8],[-50,22],[-44,24],[40,24],[48,18],[50,8]], c:[[-38,24],[-34,38],[16,38],[34,24]], wx:[-31,31], r:9},
+sport:{b:[[-50,4],[-50,10],[-30,13],[10,13],[36,11],[50,8],[50,4]], c:[[-12,13],[2,23],[20,23],[36,12]], wx:[-30,32], r:7}
+};
+function rcPoly(x, p, f){
+x.fillStyle = f; x.beginPath(); x.moveTo(p[0][0], p[0][1]);
+for(let i = 1; i < p.length; i++) x.lineTo(p[i][0], p[i][1]);
+x.closePath(); x.fill();
+}
+function rcWheel(x, wx, r, ang){
+x.fillStyle = '#0c0c0c'; x.beginPath(); x.arc(wx, r, r, 0, 6.3); x.fill();
+x.fillStyle = '#b8bcc4'; x.beginPath(); x.arc(wx, r, r * 0.62, 0, 6.3); x.fill();
+x.strokeStyle = '#555'; x.lineWidth = 1.2;
+for(let i = 0; i < 5; i++){
+const a = ang + i * 1.2566;
+x.beginPath(); x.moveTo(wx, r); x.lineTo(wx + Math.cos(a) * r * 0.6, r + Math.sin(a) * r * 0.6); x.stroke();
+}
+x.fillStyle = '#333'; x.beginPath(); x.arc(wx, r, r * 0.15, 0, 6.3); x.fill();
+}
+function rcCarDraw(x, cx, cy, w, ty, col, o){
+const s = w / 100, lo = o.lo ? 2.5 : 0, glass = '#7fa8c9';
+x.save(); x.translate(cx, cy); x.scale(s, -s);
+x.fillStyle = 'rgba(0,0,0,.35)'; x.beginPath(); x.ellipse(0, 0, 52, 4, 0, 0, 6.3); x.fill();
+if(o.ne){ x.fillStyle = o.ne; x.globalAlpha = 0.45; x.beginPath(); x.ellipse(0, 2, 54, 6, 0, 0, 6.3); x.fill(); x.globalAlpha = 1; }
+const dn = p => p.map(q=>[q[0], q[1] - lo]);
+if(ty === 'moto'){
+[-22, 22].forEach(wx=>rcWheel(x, wx, 10, o.ang));
+rcPoly(x, [[-12,14],[24,14],[34,22],[28,31],[8,29],[-6,22]], col);
+rcPoly(x, [[-14,24],[-2,30],[4,43],[-9,41]], '#2c3e50');
+x.fillStyle = '#222'; x.beginPath(); x.arc(-3, 47, 5, 0, 6.3); x.fill();
+rcPoly(x, [[26,22],[32,30],[28,31],[22,25]], glass);
+}else if(ty === 'tractor'){
+rcWheel(x, -24, 14, o.ang * 0.6); rcWheel(x, 30, 8, o.ang);
+rcPoly(x, [[8,14],[44,14],[44,26],[8,26]], col);
+rcPoly(x, [[-36,26],[-36,48],[2,48],[2,26]], col);
+rcPoly(x, [[-31,31],[-31,44],[-2,44],[-2,31]], glass);
+}else if(ty === 'truck'){
+[-36, -20, 32].forEach(wx=>rcWheel(x, wx, 9, o.ang));
+rcPoly(x, [[-50,12],[8,12],[8,40],[-50,40]], '#8a8f98');
+rcPoly(x, [[10,10],[50,10],[50,30],[44,42],[14,42],[10,38]], col);
+rcPoly(x, [[26,30],[26,38],[44,38],[47,30]], glass);
+}else if(ty === 'bus' || ty === 'van'){
+const t = ty === 'bus' ? 34 : 32;
+[-32, 34].forEach(wx=>rcWheel(x, wx, 8.5, o.ang));
+rcPoly(x, [[-50,6],[-50,t],[40,t],[50,t - 8],[50,6]], col);
+rcPoly(x, [[-44,18],[-44,t - 4],[38,t - 4],[44,t - 9],[44,18]], glass);
+}else{
+const g = GE[ty] || GE.sedan;
+g.wx.forEach(wx=>rcWheel(x, wx, g.r, o.ang));
+rcPoly(x, dn(g.b), col);
+rcPoly(x, dn(g.c), col);
+const c2 = dn(g.c);
+rcPoly(x, [[c2[0][0] + 3, c2[0][1] + 1], [c2[1][0] + 2, c2[1][1] - 2], [c2[2][0] - 2, c2[2][1] - 2], [c2[3][0] - 4, c2[3][1] + 1]], glass);
+if(ty === 'sport') rcPoly(x, [[-50,18 - lo],[-38,18 - lo],[-38,20 - lo],[-50,20 - lo]], '#111');
+}
+x.fillStyle = '#ffe9a0'; x.fillRect(46, 9 - lo, 4, 3);
+x.fillStyle = '#e74c3c'; x.fillRect(-50, 9 - lo, 3, 3);
+if(o.fl){
+x.fillStyle = '#ff9d00';
+x.beginPath(); x.moveTo(-50, 8); x.lineTo(-50 - 18 - Math.random() * 12, 6); x.lineTo(-50, 4); x.closePath(); x.fill();
+x.fillStyle = '#ffe066';
+x.beginPath(); x.moveTo(-50, 7); x.lineTo(-50 - 9 - Math.random() * 6, 6); x.lineTo(-50, 5); x.closePath(); x.fill();
+}
+x.restore();
+}
+function rcTach(x, cx, cy, R, rpm, gear, kmh){
+const a0 = 0.75 * Math.PI, A = 1.5 * Math.PI, F = r => (1000 + 7000 * r) / 9000, an = f => a0 + A * f;
+x.lineCap = 'butt';
+x.lineWidth = R * 0.16;
+x.strokeStyle = '#1b1f2a'; x.beginPath(); x.arc(cx, cy, R, an(0), an(1)); x.stroke();
+x.strokeStyle = '#2ecc71'; x.beginPath(); x.arc(cx, cy, R, an(F(0.88)), an(F(1))); x.stroke();
+x.strokeStyle = '#e74c3c'; x.beginPath(); x.arc(cx, cy, R, an(F(1)), an(1)); x.stroke();
+x.fillStyle = '#cfd6e6'; x.font = '10px Arial'; x.textAlign = 'center';
+for(let k = 0; k <= 9; k++){ const a = an(k / 9); x.fillText(k, cx + Math.cos(a) * R * 0.72, cy + Math.sin(a) * R * 0.72 + 3); }
+const a = an(Math.max(0, Math.min(1, rpm / 9000)));
+x.strokeStyle = '#fff'; x.lineWidth = 3;
+x.beginPath(); x.moveTo(cx, cy); x.lineTo(cx + Math.cos(a) * R * 0.95, cy + Math.sin(a) * R * 0.95); x.stroke();
+x.fillStyle = '#fff'; x.font = '700 ' + Math.round(R * 0.5) + 'px Arial'; x.fillText(gear, cx, cy + R * 0.22);
+x.font = '700 ' + Math.round(R * 0.2) + 'px Arial'; x.fillText(Math.round(kmh) + ' км/ч', cx, cy + R * 0.5);
+}
+rcDraw = function(n){
+const cv = document.getElementById('rc-cv');
+if(!cv || !RC) return;
+const x = cv.getContext('2d'), W = cv.width, H = cv.height, s = RC.my;
+const ppm = W * 0.011, mx = W * 0.36, dist = Math.min(s.d, RLEN + 30);
+const g = x.createLinearGradient(0, 0, 0, H * 0.5);
+g.addColorStop(0, '#0f1b3a'); g.addColorStop(1, '#3b5b8c');
+x.fillStyle = g; x.fillRect(0, 0, W, H * 0.5);
+x.fillStyle = '#18233f';
+for(let i = -1; i < 14; i++){
+const bx = ((i * 120 - dist * ppm * 0.2) % (W + 240)) - 120;
+x.fillRect(bx < -120 ? bx + W + 240 : bx, H * 0.3 - (i * 37 % 60), 70, H * 0.2 + (i * 37 % 60));
+}
+x.fillStyle = '#26303d'; x.fillRect(0, H * 0.5, W, H * 0.5);
+x.fillStyle = '#394456'; x.fillRect(0, H * 0.5, W, 5);
+x.strokeStyle = 'rgba(255,255,255,.7)'; x.lineWidth = 3; x.setLineDash([40, 30]); x.lineDashOffset = dist * ppm % 70;
+x.beginPath(); x.moveTo(0, H * 0.74); x.lineTo(W, H * 0.74); x.stroke(); x.setLineDash([]);
+const wx = m => mx + (m - dist) * ppm;
+x.fillStyle = '#f1c40f'; x.fillRect(wx(0), H * 0.5, 5, H * 0.5);
+x.fillStyle = '#fff'; x.fillRect(wx(RLEN), H * 0.5, 8, H * 0.5);
+const od = RC.ofin !== undefined && RC.ofin < 900 ? RLEN : Math.min(RLEN + 30, RC.o.d + (RC.o.v || 0) * (Date.now() - RC.o.t) / 1000);
+RC.wb = (RC.wb || 0) + (RC.o.v || 0) * 0.016 * 0.9;
+const cw = W * 0.2;
+rcCarDraw(x, Math.max(-cw, Math.min(W + cw, wx(od))), H * 0.7, cw * 0.92, RC.oc.ty, RC.ocol, {lo:RC.oc.lo, ne:RC.oc.ne, ang:RC.wb, fl:false});
+rcCarDraw(x, mx, H * 0.88, cw, RC.me.ty, RC.col, {lo:RC.me.lo, ne:RC.me.ne, ang:s.ang, fl:n < s.nT});
+x.textAlign = 'center'; x.fillStyle = '#fff'; x.font = '12px Arial';
+x.fillText(RC.oname, Math.max(40, Math.min(W - 40, wx(od))), H * 0.7 - cw * 0.46);
+const bw = W * 0.4, bx = W * 0.3;
+x.fillStyle = 'rgba(255,255,255,.15)'; x.fillRect(bx, 12, bw, 8); x.fillRect(bx, 26, bw, 8);
+x.fillStyle = RC.col; x.fillRect(bx, 12, bw * Math.min(1, s.d / RLEN), 8);
+x.fillStyle = RC.ocol; x.fillRect(bx, 26, bw * Math.min(1, od / RLEN), 8);
+x.textAlign = 'left'; x.fillStyle = '#fff'; x.font = '700 16px Arial';
+x.fillText(Math.round(Math.min(RLEN, s.d)) + ' м', 12, 24);
+if(n >= RC.go) x.fillText(((RC.fin !== undefined ? RC.fin : (n - RC.go) / 1000)).toFixed(2) + ' с', 12, 46);
+if(s.rt !== null) { x.font = '12px Arial'; x.fillStyle = '#aab4c8'; x.fillText('реакция ' + s.rt.toFixed(2) + ' с', 12, 64); }
+x.font = '700 18px Arial'; x.fillStyle = '#e67e22'; x.fillText('⚡'.repeat(s.nit), 12, 90);
+rcTach(x, W * 0.5, H * 0.86, Math.min(H * 0.17, W * 0.12), s.rpm, s.g, s.v * 3.6);
+const t = (n - RC.go) / 1000;
+if(t < 0.2){
+[-1.5, -1, -0.5, 0].forEach((tt, i)=>{
+x.fillStyle = t >= tt ? (i === 3 ? '#2ecc71' : '#f39c12') : '#2a2f3a';
+x.beginPath(); x.arc(W / 2 + (i - 1.5) * 38, H * 0.2, 14, 0, 6.3); x.fill();
+});
+}
+if(RC.msg && n - RC.msg[1] < 1300){ x.textAlign = 'center'; x.fillStyle = RC.msg[2]; x.font = '700 30px Arial'; x.fillText(RC.msg[0], W / 2, H * 0.36); }
+if(RC.over){
+x.fillStyle = 'rgba(0,0,0,.7)'; x.fillRect(0, 0, W, H);
+x.textAlign = 'center'; x.fillStyle = '#fff'; x.font = '700 44px Arial'; x.fillText(RC.txt, W / 2, H * 0.42);
+x.font = '20px Arial';
+x.fillText((RC.fin !== undefined ? 'Время: ' + RC.fin.toFixed(2) + ' с' : '') + (s.rt !== null ? ' · Реакция: ' + s.rt.toFixed(2) + ' с' : ''), W / 2, H * 0.54);
+x.fillText('Нажми ✕, чтобы выйти', W / 2, H * 0.64);
+}
 };
 </script>
