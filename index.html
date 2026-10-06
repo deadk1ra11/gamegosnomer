@@ -4634,5 +4634,179 @@ openAdmin = function(){
   b.onclick = openDrop;
   g.appendChild(b);
 };
+// ===== Экономика: цены номеров ниже, прокрут дороже =====
+const PRICE_K = 0.6;
+const SPIN_K = 3;
+REGIONS_DATA.forEach(r => {
+  if(!r.eco){ r.spinCost = Math.round(r.spinCost * SPIN_K); r.eco = true; }
+});
+initRegionSelect();
+const _gpEco = generatePlateData;
+generatePlateData = function(){
+  const d = _gpEco();
+  if(godModeActive || DROP || /Именной/.test(d.rarityText || '')) return d;
+  d.price = Math.floor(d.price * PRICE_K);
+  return d;
+};
+// ===== Именные номера: очень редкие и дорогие =====
+const NAMED_CHANCE = 0.000001; // 0.0001%
+const NAMED_OLD = 0.004; // старый шанс в коде (0.4%)
+const _gpNamed = generatePlateData;
+generatePlateData = function(){
+  let d = _gpNamed();
+  if(godModeActive || DROP === 'named') return d;
+  if(!/Именной/.test(d.rarityText || '')) return d;
+  if(Math.random() < NAMED_CHANCE / NAMED_OLD){
+    d.price = Math.floor(200e6 + Math.random() * 300e6);
+    return d;
+  }
+  let tries = 0;
+  do { d = _gpNamed(); tries++; }
+  while(/Именной/.test(d.rarityText || '') && tries < 20);
+  return d;
+};
+// ===== Клановый чат =====
+let ccRef = null, ccClan = null, ccLast = 0;
+async function clanChatOpen(){
+  if(!currentUser) return alert('Сначала войдите!');
+  const me = ukey(currentUser);
+  const k = (await db.ref('uclan/' + me).once('value')).val();
+  if(!k) return alert('Ты не состоишь в клане');
+  ccClan = k;
+  const nm = (await db.ref('clans/' + k + '/name').once('value')).val() || 'Клан';
+  box('cc-modal', '<h3>💬 ' + esc(nm) + '</h3><div id="cc-log" class="list-box" style="height:280px"></div><small style="color:#888">Нажми на своё сообщение, чтобы удалить</small><input id="cc-inp" placeholder="Сообщение..." maxlength="300"><button class="btn-action" onclick="clanChatSend()">Отправить</button>');
+  if(ccRef) ccRef.off();
+  ccRef = db.ref('clanchat/' + k).limitToLast(50);
+  ccRef.on('child_added', s => {
+    const m = s.val(), lg = document.getElementById('cc-log');
+    if(!m || !lg) return;
+    const mine = ukey(m.u) === me;
+    const d = document.createElement('div');
+    d.id = 'cc_' + s.key;
+    d.style.cssText = 'padding:4px 0;text-align:' + (mine ? 'right' : 'left');
+    d.innerHTML = '<small style="color:#8a93b5">' + esc(m.u) + '</small><br><span style="display:inline-block;max-width:80%;padding:6px 10px;border-radius:12px;background:' + (mine ? '#2b5278' : '#2a2f45') + ';text-align:left;word-break:break-word">' + esc(m.x) + '</span>';
+    if(mine) d.onclick = () => { if(confirm('Удалить сообщение?')) db.ref('clanchat/' + k + '/' + s.key).remove(); };
+    lg.appendChild(d);
+    lg.scrollTop = lg.scrollHeight;
+  });
+  ccRef.on('child_removed', s => { const d = document.getElementById('cc_' + s.key); if(d) d.remove(); });
+  document.getElementById('cc-inp').addEventListener('keydown', e => { if(e.key === 'Enter') clanChatSend(); });
+}
+function clanChatSend(){
+  const i = document.getElementById('cc-inp'), t = i && i.value.trim();
+  if(!t || !ccClan || Date.now() - ccLast < 1000) return;
+  ccLast = Date.now();
+  db.ref('clanchat/' + ccClan).push({u: currentUser, x: t.slice(0, 300), t: Date.now()});
+  i.value = '';
+}
+const _ocChat = openClans;
+openClans = async function(){
+  await _ocChat();
+  if(!currentUser) return;
+  const k = (await db.ref('uclan/' + ukey(currentUser)).once('value')).val();
+  const mc = document.querySelector('#clan-modal .modal-content');
+  if(!k || !mc || mc.querySelector('#cc-btn')) return;
+  const b = document.createElement('button');
+  b.id = 'cc-btn'; b.textContent = '💬 Чат клана'; b.onclick = clanChatOpen;
+  mc.insertBefore(b, mc.lastElementChild);
+};
+document.querySelectorAll('button').forEach(b => { if(b.textContent.includes('Кланы')) b.onclick = openClans; });
+// ===== Чат клана: изменить / удалить по зажатию =====
+async function clanChatOpen(){
+  if(!currentUser) return alert('Сначала войдите!');
+  const me = ukey(currentUser);
+  const k = (await db.ref('uclan/' + me).once('value')).val();
+  if(!k) return alert('Ты не состоишь в клане');
+  ccClan = k;
+  const nm = (await db.ref('clans/' + k + '/name').once('value')).val() || 'Клан';
+  box('cc-modal', '<h3>💬 ' + esc(nm) + '</h3><div id="cc-log" class="list-box" style="height:280px"></div><small style="color:#888">Удерживай своё сообщение, чтобы изменить или удалить</small><input id="cc-inp" placeholder="Сообщение..." maxlength="300"><button class="btn-action" onclick="clanChatSend()">Отправить</button>');
+  const log = document.getElementById('cc-log');
+  log.style.userSelect = 'none'; log.style.webkitUserSelect = 'none';
+  lp(log, el => ukey(el.dataset.u) === me, (key, x) => {
+    box('ccm-modal', '<h3>Сообщение</h3><p style="color:#aaa;font-size:0.85rem;word-break:break-word">' + esc(x) + '</p><button onclick="closeModal(\'ccm-modal\');clanChatEdit(\'' + key + '\')">✏️ Изменить</button><button onclick="closeModal(\'ccm-modal\');clanChatDel(\'' + key + '\')" style="background:#e74c3c">🗑 Удалить</button>');
+  });
+  if(ccRef) ccRef.off();
+  ccRef = db.ref('clanchat/' + k).limitToLast(50);
+  const draw = s => {
+    const m = s.val(), lg = document.getElementById('cc-log');
+    if(!m || !lg) return;
+    let d = document.getElementById('cc_' + s.key);
+    if(!d){ d = document.createElement('div'); d.id = 'cc_' + s.key; lg.appendChild(d); }
+    const mine = ukey(m.u) === me;
+    d.dataset.k = s.key; d.dataset.u = m.u; d.dataset.x = m.x;
+    d.style.cssText = 'padding:4px 0;text-align:' + (mine ? 'right' : 'left');
+    d.innerHTML = '<small style="color:#8a93b5">' + esc(m.u) + '</small><br><span style="display:inline-block;max-width:80%;padding:6px 10px;border-radius:12px;background:' + (mine ? '#2b5278' : '#2a2f45') + ';text-align:left;word-break:break-word">' + esc(m.x) + (m.e ? ' <i style="color:#9ab;font-size:0.7rem">(изм.)</i>' : '') + '</span>';
+    lg.scrollTop = lg.scrollHeight;
+  };
+  ccRef.on('child_added', draw);
+  ccRef.on('child_changed', draw);
+  ccRef.on('child_removed', s => { const d = document.getElementById('cc_' + s.key); if(d) d.remove(); });
+  document.getElementById('cc-inp').addEventListener('keydown', e => { if(e.key === 'Enter') clanChatSend(); });
+}
+function clanChatEdit(key){
+  const path = 'clanchat/' + ccClan + '/' + key;
+  db.ref(path).once('value').then(s => {
+    const m = s.val(); if(!m) return;
+    const t = prompt('Изменить сообщение:', m.x);
+    if(t && t.trim()) db.ref(path).update({x: t.trim().slice(0, 300), e: true});
+  });
+}
+function clanChatDel(key){
+  if(confirm('Удалить сообщение?')) db.ref('clanchat/' + ccClan + '/' + key).remove();
+}
+// ===== Окна-уведомления: кнопки ОК и Отмена =====
+window.alert = function(msg){
+  let m = document.getElementById('alert-modal');
+  if(!m){
+    m = document.createElement('div');
+    m.id = 'alert-modal'; m.className = 'modal'; m.style.zIndex = 9999;
+    m.innerHTML = '<div class="modal-content"><div id="alert-text" style="white-space:pre-wrap;word-break:break-word;margin-bottom:6px"></div><button id="alert-ok">ОК</button><button id="alert-cancel" style="background:#555">Отмена</button></div>';
+    document.body.appendChild(m);
+    const close = () => { m.style.display = 'none'; document.getElementById('alert-text').innerHTML = ''; };
+    m.querySelector('#alert-ok').onclick = close;
+    m.querySelector('#alert-cancel').onclick = close;
+  }
+  const p = document.createElement('div');
+  p.style.margin = '4px 0'; p.textContent = String(msg);
+  document.getElementById('alert-text').appendChild(p);
+  m.style.display = 'flex';
+};
+// ===== Сортировка коллекции =====
+let collSort = localStorage.getItem('collsort') || 'def';
+const RK = {common:0, uncommon:1, rare:2, epic:3, legendary:4, godlike:5};
+const rk = p => RK[p.rarityClass || 'common'] || 0;
+const SORTS = {
+  def:     [(a, b) => a.i - b.i, 'Как получены'],
+  new:     [(a, b) => b.i - a.i, 'Сначала новые'],
+  price_d: [(a, b) => (b.p.price || 0) - (a.p.price || 0), 'Цена: дорогие сверху'],
+  price_a: [(a, b) => (a.p.price || 0) - (b.p.price || 0), 'Цена: дешёвые сверху'],
+  rar_d:   [(a, b) => rk(b.p) - rk(a.p) || (b.p.price || 0) - (a.p.price || 0), 'Редкость: высокая сверху'],
+  rar_a:   [(a, b) => rk(a.p) - rk(b.p) || (a.p.price || 0) - (b.p.price || 0), 'Редкость: низкая сверху'],
+  abc:     [(a, b) => String(a.p.plate).localeCompare(String(b.p.plate), 'ru'), 'По номеру А–Я']
+};
+const _ocSort = openCollectionModal;
+openCollectionModal = function(){
+  _ocSort();
+  const c = document.getElementById('collection-items');
+  if(!c) return;
+  const cards = [];
+  Array.from(c.children).forEach(el => {
+    const m = /sellSelectedPlate\((\d+)\)/.exec(el.innerHTML);
+    const p = m && playerCollection[+m[1]];
+    if(p) cards.push({el: el, i: +m[1], p: p});
+  });
+  if(!cards.length) return;
+  const sel = document.createElement('select');
+  sel.style.cssText = 'width:100%;padding:10px;margin-bottom:10px;border-radius:12px;border:1px solid #333652;background:#0d0f18;color:#fff;font-size:0.95rem';
+  Object.keys(SORTS).forEach(k => {
+    const o = document.createElement('option');
+    o.value = k; o.textContent = '↕ ' + SORTS[k][1];
+    if(k === collSort) o.selected = true;
+    sel.appendChild(o);
+  });
+  sel.onchange = () => { collSort = sel.value; localStorage.setItem('collsort', collSort); openCollectionModal(); };
+  c.insertBefore(sel, cards[0].el);
+  cards.sort((SORTS[collSort] || SORTS.def)[0]).forEach(x => c.appendChild(x.el));
+};
 
 </script>
