@@ -1559,7 +1559,7 @@ const _sp2 = spinNumber;
 let _lastSpin = 0;
 spinNumber = function(){
 const n = Date.now();
-if(n - _lastSpin < 50) return;
+if(n - _lastSpin < 20) return;
 _lastSpin = n;
 _sp2();
 };
@@ -1644,7 +1644,7 @@ alert('Лот выставлен!');
 openAuction();
 });
 }
-const AMAX = 1e9;
+const AMAX = Infinity;
 function aSettle(k, a){
 db.ref('auctions/'+k+'/done').transaction(d => d ? undefined : true).then(r=>{
 if(!r.committed) return;
@@ -2560,7 +2560,7 @@ const d = _gp4();
 if(!d.region) return d;
 const R = REGIONS_DATA.find(r=>!r.all && r.codes.indexOf(d.region) >= 0) || {mult:1};
 const pm = d.ptype ? PT[d.ptype].m : 1;
-if(!godModeActive && d.rarityClass !== 'godlike' && Math.random() < 0.008){
+if(!godModeActive && d.rarityClass !== 'godlike' && Math.random() < 0.001){
 d.plate = mkPlate('godlike').plate;
 d.rarityClass = 'godlike';
 d.price = Math.floor((RPR.godlike[0] + Math.random()*(RPR.godlike[1]-RPR.godlike[0])) * R.mult * pm);
@@ -2568,7 +2568,7 @@ d.price = Math.floor((RPR.godlike[0] + Math.random()*(RPR.godlike[1]-RPR.godlike
 if(d.rarityClass === 'godlike') d.rarityText = '👑 Божественный' + (d.ptype ? ' · ' + PT[d.ptype].n : '');
 const pad = String(d.region).padStart(3, '0');
 let match = d.plate.slice(1, 4) === pad;
-if(!match && !godModeActive && Math.random() < 0.012){
+if(!match && !godModeActive && Math.random() < 0.003){
 d.plate = d.plate[0] + pad + d.plate.slice(4);
 match = true;
 }
@@ -2935,7 +2935,7 @@ pm.forEach(m=>{ m.channels.AlbedoPBR.texture = {uid:tid}; m.channels.AlbedoPBR.c
 }});
 }catch(e){ plain(); }
 };
-const COLL_CAP = 400;
+const COLL_CAP = 500;
 const defText = p => (p.rarityClass === 'common' ? 'Обычный номер' : (RTXT[p.rarityClass] || '')) + (p.ptype && PT[p.ptype] ? ' · ' + PT[p.ptype].n : '');
 const slim = p => {
 const q = {plate:p.plate || '', region:p.region || '', price:p.price || 0};
@@ -4130,4 +4130,564 @@ x.fillText((RC.fin !== undefined ? 'Время: ' + RC.fin.toFixed(2) + ' с' : 
 x.fillText('Нажми ✕, чтобы выйти', W / 2, H * 0.64);
 }
 };
+const _fi2 = fillInfo;
+fillInfo = function(){
+_fi2();
+const m = document.querySelector('#info-modal .modal-content');
+if(!m) return;
+m.innerHTML = m.innerHTML.replace('>≈1%<', '>≈0.3%<').replace('(≈1.3%)', '(≈0.4%)');
+};
+openCraft = function(){
+if(!currentUser) return alert('Сначала войдите!');
+let h = '<h3>🔨 Крафт</h3><p style="font-size:0.85rem;color:#a0a5ba">3 номера одной редкости = 1 номер выше. Божественный: 5 легендарных, шанс успеха 40% (при неудаче номера пропадают).</p>';
+RANK.slice(0, 5).forEach(r=>{
+const need = r === 'legendary' ? 5 : 3;
+const n = playerCollection.filter(p=>(p.rarityClass || 'common') === r).length;
+h += `<div class="list-item"><span>${RN[r]}: ${n}</span>` + (n >= need ? `<button onclick="craft('${r}')" style="width:auto;padding:6px 12px;margin:0">${r === 'legendary' ? '👑 Скрафтить (40%)' : 'Скрафтить'}</button>` : `<small style="color:#888">нужно ${need}</small>`) + '</div>';
+});
+box('craft-modal', h);
+};
+const _craft0 = craft;
+craft = function(r){
+if(r !== 'legendary') return _craft0(r);
+const idx = [];
+playerCollection.forEach((p,i)=>{ if((p.rarityClass || 'common') === 'legendary' && idx.length < 5) idx.push(i); });
+if(idx.length < 5) return alert('Нужно 5 легендарных!');
+idx.reverse().forEach(i=>playerCollection.splice(i, 1));
+if(Math.random() < 0.4){
+const np = mkPlate('godlike');
+playerCollection.push(np);
+saveCollection();
+alert('👑 Получен божественный номер: ' + np.plate + ' (' + np.region + ')!');
+}else{
+saveCollection();
+alert('💥 Крафт не удался: 5 легендарных потеряны');
+}
+openCraft();
+};
+const NAMED = `А001АА|77|Орлов К. С. (лётчик-космонавт, вымышленный)
+В777ВВ|97|Волков Д. А. (чемпион, вымышленный)
+К007КХ|77|Соколов В. И. (депутат, вымышленный)
+О555ОО|199|Беркут Р. Т. (автогонщик, вымышленный)
+Е001КХ|78|Ястребов Н. Н. (полярник, вымышленный)
+М777МР|102|Громов П. Е. (предприниматель, вымышленный)
+Х999ХХ|97|Миронов Т. Б. (шоумен, вымышленный)
+Т001ТТ|116|Левин Ю. А. (режиссёр, вымышленный)
+С777СС|777|Крылов М. Г. (хоккеист, вымышленный)
+Р555РР|99|Зорин А. К. (академик, вымышленный)
+Н001НН|50|Рябов Е. Д. (шеф-повар, вымышленный)
+У777УУ|23|Шторм Л. В. (рок-музыкант, вымышленный)`.split('\n');
+const _gp5 = generatePlateData;
+generatePlateData = function(){
+const d = _gp5();
+if(godModeActive || Math.random() >= 0.004) return d;
+const e = NAMED[Math.floor(Math.random() * NAMED.length)].split('|');
+d.plate = e[0]; d.region = e[1]; d.rarityClass = 'epic';
+delete d.ptype;
+d.price = Math.floor(8e6 + Math.random() * 17e6);
+d.rarityText = '👤 Именной · ' + e[2];
+return d;
+};
+function namedReveal(d){
+const own = (d.rarityText || '').split('·').slice(1).join('·').trim();
+box('named-modal', '<div style="background:radial-gradient(#4a3b00,#0a0a0a);padding:16px;border-radius:14px;text-align:center"><div style="display:flex;justify-content:space-between;background:linear-gradient(#e6c200,#a58800);color:#000;border-radius:10px;padding:8px 12px;font-weight:700"><span>Эпический</span><span>' + formatMoney(d.price) + '</span></div><div style="margin:26px 0"><div style="transform:scale(1.7);display:inline-block">' + miniPlate(d) + '</div></div><div style="color:#bbb;font-size:1.05rem">' + esc(own) + '</div></div>');
+}
+const _sp9 = spinNumber;
+spinNumber = function(){
+const n = playerCollection.length;
+_sp9();
+if(playerCollection.length > n){
+const d = playerCollection[playerCollection.length - 1];
+if(/Именной/.test(d.rarityText || '')) namedReveal(d);
+}
+};
+rcBotAI = function(b, dt, now, go){
+if(now < go + b.react){ b.gas = false; return; }
+b.gas = true;
+if((b.rpm - 1000) / 7000 >= b.tgt && b.g < 6){ rcShift(b, now); b.tgt = 0.66 + Math.random() * 0.24; }
+if(b.nit > 0 && b.d > 140 && now >= b.nT){ b.nit--; b.nT = now + 2200; }
+};
+rcBot = function(){
+const c = garage[+document.getElementById('rc-car').value];
+if(!c) return;
+RCAR = c;
+const m = CARS[c.m] || CARS[0], pw = rcTier(c);
+closeModal('race-modal');
+const b = rcNew(pw * (0.66 + Math.random() * 0.2));
+b.react = 350 + Math.random() * 350; b.tgt = 0.72; b.nit = 1;
+RC = {bot:b, bet:0, go:sNow() + 6000, my:rcNew(pw), o:{d:0, v:0, t:0}, oc:{ty:['sedan', 'sport', 'suv', 'hatch'][Math.floor(Math.random() * 4)], lo:0, ne:''}, me:{ty:m.t, lo:c.low ? 1 : 0, ne:c.neon || ''}, oname:'Бот', ocol:'#7f8c8d', col:c.color, over:false, last:0, send:0, wb:0};
+rcOverlay();
+requestAnimationFrame(rcLoop);
+};
+const _oc9 = openCar;
+openCar = function(i){
+_oc9(i);
+const c = garage[i];
+if(!c || !c.plate) return;
+const f = document.querySelector('#car-modal iframe');
+if(!f) return;
+const w = f.parentNode;
+w.style.position = 'relative';
+const b = document.createElement('div');
+b.style.cssText = 'position:absolute;left:8px;top:8px;pointer-events:none;z-index:2';
+b.innerHTML = miniPlate(c.plate);
+w.appendChild(b);
+};
+const _lu9 = loginUser;
+loginUser = function(u){
+_lu9(u);
+db.ref('bonus/' + ukey(u)).on('child_added', s=>{
+const v = s.val() || {};
+s.ref.remove();
+const go = ()=>{
+if(!sLoaded){ setTimeout(go, 500); return; }
+if(v.xp){ addXp(v.xp); toast('⭐ Админ выдал опыт: +' + v.xp); }
+if(v.set != null){ S.xp = v.set; updLvl(); pushStats(); toast('⭐ Админ установил уровень: ' + lvl(S.xp)); }
+if(v.msg) notify('📢 Сообщение от админа', v.msg, null);
+};
+go();
+});
+};
+function axBonus(obj){
+const n = axUser();
+if(!n) return;
+db.ref('bonus/' + ukey(n)).push(obj).then(()=>alert('Отправлено игроку ' + n));
+}
+function axXp(){
+if(!axOwner()) return;
+const v = num(axV('ax-val'));
+if(!(v > 0)) return alert('Введи опыт в поле «Значение»');
+axBonus({xp:v});
+}
+function axLevel(){
+if(!axOwner()) return;
+const L = num(axV('ax-val'));
+if(!(L >= 1 && L <= 999)) return alert('Введи уровень (1–999) в поле «Значение»');
+axBonus({set:(L - 1) * (L - 1) * 100});
+}
+function axNotify(){
+if(!axOwner()) return;
+const t = axV('ax-val');
+if(!t) return alert('Введи текст в поле «Значение»');
+axBonus({msg:t.slice(0, 200)});
+}
+function axGiveGod(){
+if(!axOwner()) return;
+const n = axUser();
+if(!n) return;
+const p = mkPlate('godlike');
+axGive(n, p).then(()=>alert('Выдан божественный номер ' + p.plate + ' → ' + n));
+}
+function axClearRaces(){
+if(!axOwner() || !confirm('Очистить очередь и комнаты гонок?')) return;
+Promise.all([db.ref('raceq').remove(), db.ref('races').remove()]).then(()=>alert('Гонки очищены'));
+}
+const _oa5 = openAdmin;
+openAdmin = function(){
+_oa5();
+const g = document.querySelector('#ax-more .mgrid, #adm-extra .mgrid');
+if(!g || document.getElementById('ax-xp')) return;
+[['⭐','Выдать опыт','axXp()','ax-xp'], ['📈','Задать уровень','axLevel()','ax-lv'], ['📣','Сообщение игроку','axNotify()','ax-nt'], ['👑','Божеств. номер','axGiveGod()','ax-gg'], ['🏁','Очистить гонки','axClearRaces()','ax-cr']].forEach(x=>{
+const b = document.createElement('button');
+b.id = x[3]; b.innerHTML = '<span>' + x[0] + '</span>' + x[1];
+b.setAttribute('onclick', x[2]);
+g.appendChild(b);
+});
+};
+// ===== ДОПОЛНЕНИЯ =====
+// 3. Уровень уведомлением
+addXp=function(n){
+ const o=lvl(S.xp); S.xp+=n; const l=lvl(S.xp);
+ if(l>o){ updateBalance(l*1000); notify('⭐ Новый уровень: '+l,'+'+formatMoney(l*1000)); }
+ updLvl(); pushStats();
+};
+
+// 4. Заставка при запуске
+(function(){
+ const st=document.createElement('style');
+ st.textContent='#splash{position:fixed;inset:0;z-index:999999;background:radial-gradient(#16192b,#05060c);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .6s}#splash .pl{background:#fff;color:#111;border:3px solid #111;border-radius:10px;padding:8px 20px;font:700 2rem Arial;letter-spacing:3px;animation:spPop .8s ease both}#splash .car{font-size:3rem;position:absolute;bottom:30%;left:-80px;animation:spDrive 1.6s ease-in forwards}#splash .bar{width:160px;height:4px;background:#222;border-radius:4px;margin-top:26px;overflow:hidden}#splash .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,#007bff,#2ee66b);animation:spLoad 1.8s ease forwards}@keyframes spPop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}@keyframes spDrive{to{left:110%}}@keyframes spLoad{to{width:100%}}';
+ document.head.appendChild(st);
+ const d=document.createElement('div');d.id='splash';
+ d.innerHTML='<div class="pl">А 777 МР</div><div class="car">🏎️</div><div class="bar"><i></i></div>';
+ document.body.appendChild(d);
+ setTimeout(()=>{d.style.opacity=0;setTimeout(()=>d.remove(),600)},2000);
+})();
+
+// 2. Крафт: 3 легендарных -> божественный, 3 божественных -> именной
+if(!RN.godlike) RN.godlike='👑 Божественные';
+openCraft=function(){
+ if(!currentUser) return alert('Сначала войдите!');
+ let h='<h3>🔨 Крафт</h3><p style="font-size:0.85rem;color:#a0a5ba">3 номера одной редкости = 1 номер выше. 3 божественных = 1 именной.</p>';
+ RANK.forEach(r=>{
+  const n=playerCollection.filter(p=>(p.rarityClass||'common')===r).length;
+h+='<div class="list-item"><span>'+RN[r]+': '+n+'</span>'+(n>=3?'<button onclick="craft(\''+r+'\')" style="width:auto;padding:6px 12px;margin:0">Скрафтить</button>':'')+'</div>';
+ });
+ box('craft-modal',h);
+};
+craft=function(r){
+ const idx=[];
+ playerCollection.forEach((p,i)=>{ if((p.rarityClass||'common')===r && idx.length<3) idx.push(i); });
+ if(idx.length<3) return alert('Нужно 3 номера!');
+ idx.reverse().forEach(i=>playerCollection.splice(i,1));
+ let np;
+ if(r==='godlike'){
+  const e=NAMED[Math.floor(Math.random()*NAMED.length)].split('|');
+  np={plate:e[0],region:e[1],rarityClass:'epic',rarityText:'👤 Именной · '+e[2],price:Math.floor(50e6+Math.random()*100e6),style:'standard',frame:'standard'};
+ } else np=mkPlate(RANK[RANK.indexOf(r)+1]);
+ playerCollection.push(np); saveCollection();
+ alert('🔨 Получен номер: '+np.plate+' ('+np.rarityText+')');
+ if(r==='godlike') try{namedReveal(np)}catch(e){}
+ openCraft();
+};
+
+// 8. Именные номера: без пометки «вымышленный», цена выше
+NAMED.forEach((x,i)=>{ NAMED[i]=x.replace(/,\s*вымышленный/,''); });
+const _gp8=generatePlateData;
+generatePlateData=function(){
+ const d=_gp8();
+ if(/Именной/.test(d.rarityText||'')) d.price=Math.floor(50e6+Math.random()*100e6);
+ return d;
+};
+
+// 7. Своя ставка в гонках
+const _or7=openRace;
+openRace=function(){
+ _or7();
+ const b=document.getElementById('rc-bet');
+ if(!b||document.getElementById('rc-cbet')) return;
+ const i=document.createElement('input');
+ i.id='rc-cbet'; i.type='number'; i.min='100'; i.placeholder='Или своя ставка (от 100 $)';
+ i.style.cssText=b.style.cssText;
+ b.after(i);
+};
+const _rf7=rcFind;
+rcFind=function(){
+ const c=document.getElementById('rc-cbet'), v=c?Math.floor(+c.value):0;
+ if(v){
+  if(v<100) return alert('Минимальная ставка 100');
+  if(v>balance) return alert('Недостаточно денег для ставки');
+  const s=document.getElementById('rc-bet');
+            s.insertAdjacentHTML('beforeend','<option value="'+v+'">'+v+'</option>'); s.value=String(v);
+ }
+ return _rf7();
+};
+// 1. Бан по устройству и на время
+const DEV=(()=>{let d=localStorage.getItem('dev_id'); if(!d){d='d'+Math.random().toString(36).slice(2)+Date.now().toString(36); localStorage.setItem('dev_id',d);} return d;})();
+let _banUser=null, _bt={t:null,d:null}, _btm=null;
+function banActive(v){ return v && (v.until===0 || v.until>Date.now()); }
+function banCheck(){
+ const v=[_bt.t,_bt.d].filter(banActive);
+ let o=document.getElementById('ban2-ov');
+ if(!v.length){ if(o) o.remove(); return; }
+ const u=Math.max(...v.map(x=>x.until===0?Infinity:x.until));
+ const txt=u===Infinity?'навсегда':'до '+new Date(u).toLocaleString('ru-RU');
+ if(!o){ o=document.createElement('div'); o.id='ban2-ov'; o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:99999;display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:center;color:#fff;font-size:1.3rem;text-align:center;padding:20px'; document.body.appendChild(o); }
+ o.innerHTML='🚫 Доступ заблокирован<small style="color:#aaa">Бан '+txt+'</small>';
+ clearTimeout(_btm); if(u!==Infinity) _btm=setTimeout(banCheck,Math.min(u-Date.now()+500,2147483647));
+}
+db.ref('dbans/'+DEV).on('value',s=>{_bt.d=s.val(); banCheck();});
+const _lu1=loginUser;
+loginUser=function(u){
+ _lu1(u);
+ const k=ukey(u);
+ db.ref('udev/'+k).set(DEV);
+ if(_banUser) db.ref('tbans/'+_banUser).off();
+ _banUser=k;
+ db.ref('tbans/'+k).on('value',s=>{_bt.t=s.val(); banCheck();});
+};
+function axTBan(){
+ if(!axOwner()) return;
+ const n=axV('ax-name'); if(!n) return alert('Введи ник игрока');
+ const k=ukey(n); if(k==='deadk1ra') return alert('Нельзя банить создателя');
+ const m=prompt('На сколько минут? (0 — навсегда)','60'); if(m===null) return;
+ const mins=Math.max(0,Math.floor(+m)||0), until=mins?Date.now()+mins*60000:0;
+ const dev=confirm('Забанить также по устройству игрока?');
+ db.ref('tbans/'+k).set({until}).then(()=>{
+  if(!dev) return alert('Забанен: '+n);
+  return db.ref('udev/'+k).once('value').then(s=>{
+   if(!s.val()) return alert('Ник забанен, но устройство игрока пока неизвестно (он ещё не заходил после обновления)');
+   return db.ref('dbans/'+s.val()).set({until}).then(()=>alert('Забанены ник и устройство: '+n));
+  });
+ });
+}
+function axTUnban(){
+ if(!axOwner()) return;
+ const n=axV('ax-name'); if(!n) return alert('Введи ник игрока');
+ const k=ukey(n);
+ db.ref('tbans/'+k).remove(); db.ref('bans/'+k).remove();
+ db.ref('udev/'+k).once('value').then(s=>{ if(s.val()) db.ref('dbans/'+s.val()).remove(); alert('Разбанен (ник и устройство): '+n); });
+}
+const _oa9=openAdmin;
+openAdmin=function(){
+ _oa9();
+ const g=document.querySelector('#ax-more .mgrid, #adm-extra .mgrid');
+ if(!g||document.getElementById('ax-tb')) return;
+ [['⏱','Бан на время / по устройству','axTBan()','ax-tb'],['✅','Снять все баны','axTUnban()','ax-ub']].forEach(x=>{
+  const b=document.createElement('button'); b.id=x[3]; b.innerHTML='<span>'+x[0]+'</span>'+x[1]; b.setAttribute('onclick',x[2]); g.appendChild(b);
+ });
+};
+
+// 5. Кланы (базовая версия)
+const ckey=n=>n.toLowerCase().replace(/[.#$\/\[\]\s]/g,'_');
+async function openClans(){
+ if(!currentUser) return alert('Сначала войдите!');
+ const me=ukey(currentUser);
+ const mc=(await db.ref('uclan/'+me).once('value')).val();
+ const all=(await db.ref('clans').once('value')).val()||{};
+ let h='<h3>🏰 Кланы</h3>';
+ if(mc&&all[mc]){
+  const c=all[mc], ms=Object.values(c.members||{});
+h+='<p><b>'+esc(c.name)+'</b> · глава: '+esc(c.ownerName)+'</p><p style="font-size:.85rem;color:#aaa">Участников: '+ms.length+'<br>'+ms.map(esc).join(', ')+'</p><button onclick="clanLeave(\''+mc+'\')" style="background:#c0392b">Покинуть клан</button>';
+ } else {
+  h+='<input id="cl-name" placeholder="Название клана" maxlength="20"><button onclick="clanCreate()">Создать (500 000 $)</button><p style="color:#aaa;font-size:.85rem">Или вступи:</p>';
+         Object.entries(all).forEach(([k,c])=>{ h+='<div class="list-item"><span>'+esc(c.name)+' · '+Object.keys(c.members?c.members:{}).length+' чел.</span><button onclick="clanJoin(\''+k+'\')" style="width:auto;padding:6px 12px;margin:0">Вступить</button></div>'; });
+ }
+ box('clan-modal',h);
+}
+async function clanCreate(){
+ const n=(document.getElementById('cl-name').value||'').trim();
+ if(n.length<3) return alert('Название от 3 символов');
+ if(balance<500000) return alert('Нужно 500 000 ₽');
+ const k=ckey(n);
+ if((await db.ref('clans/'+k).once('value')).val()) return alert('Такой клан уже есть');
+ updateBalance(-500000);
+ const me=ukey(currentUser);
+ await db.ref('clans/'+k).set({name:n,owner:me,ownerName:currentUser,members:{[me]:currentUser}});
+ await db.ref('uclan/'+me).set(k); openClans();
+}
+async function clanJoin(k){ const me=ukey(currentUser); await db.ref('clans/'+k+'/members/'+me).set(currentUser); await db.ref('uclan/'+me).set(k); openClans(); }
+async function clanLeave(k){
+ const me=ukey(currentUser);
+ await db.ref('clans/'+k+'/members/'+me).remove(); await db.ref('uclan/'+me).remove();
+ const left=(await db.ref('clans/'+k+'/members').once('value')).val();
+ if(!left) await db.ref('clans/'+k).remove();
+ else if((await db.ref('clans/'+k+'/owner').once('value')).val()===me){ const nk=Object.keys(left)[0]; await db.ref('clans/'+k).update({owner:nk,ownerName:left[nk]}); }
+ openClans();
+}
+(function(){
+ const b=document.createElement('button');
+ b.textContent='🏰 Кланы'; b.onclick=openClans;
+ b.style.cssText='position:fixed;left:10px;bottom:10px;z-index:90;padding:8px 12px;border:0;border-radius:20px;background:#3b2f8f;color:#fff;font-weight:700;box-shadow:0 4px 12px rgba(0,0,0,.5)';
+ document.body.appendChild(b);
+})();
+// ===== ДОП. 2: выпадение, банк, дома, налоги, телефон =====
+// 9. Выбор класса выпадения (для всех)
+let DROP=localStorage.getItem('dropc')||'';
+const _g9=generatePlateData;
+generatePlateData=function(){
+ const d=_g9(); if(!DROP) return d;
+ if(DROP==='named'){
+  const e=NAMED[Math.floor(Math.random()*NAMED.length)].split('|');
+  Object.assign(d,{plate:e[0],region:e[1],rarityClass:'epic',price:Math.floor(50e6+Math.random()*100e6),rarityText:'👤 Именной · '+e[2]});
+  delete d.ptype; return d;
+ }
+ Object.assign(d,mkPlate(DROP)); delete d.ptype; return d;
+};
+function openDrop(){
+ const o=[['','🎲 Обычный шанс'],['common','Обычные'],['uncommon','Зеркальные'],['rare','Редкие'],['epic','Эпические'],['legendary','Легендарные'],['godlike','Божественные'],['named','Именные']];
+  box('drop-modal','<h3>🎰 Выпадение номеров</h3>'+o.map(x=>'<button onclick="setDrop(\''+x[0]+'\')" style="background:'+(DROP===x[0]?'#2ecc71':'#2a2f45')+'">'+x[1]+'</button>').join(''));
+}
+function setDrop(v){ DROP=v; localStorage.setItem('dropc',v); openDrop(); }
+
+// Финансы игрока (хранятся в Firebase: fin/<ник>)
+let FIN={loan:0,due:0,col:0,sp:[],sc:[],houses:[],mort:0,taxM:'',bill:0}, finOK=false;
+const HOUSES=[['🏢 Квартира',5e6],['🏠 Дом',25e6],['🏡 Коттедж',100e6],['🏰 Особняк',500e6]];
+const finSave=()=>{ if(currentUser&&finOK) db.ref('fin/'+ukey(currentUser)).set(FIN); };
+const _lu13=loginUser;
+loginUser=function(u){
+ _lu13(u); finOK=false;
+ db.ref('fin/'+ukey(u)).once('value').then(s=>{
+      FIN=Object.assign({loan:0,due:0,col:0,sp:[],sc:[],houses:[],mort:0,taxM:'',bill:0},s.val()?s.val():{});
+  FIN.sp=FIN.sp?FIN.sp:[]; FIN.sc=FIN.sc?FIN.sc:[]; FIN.houses=FIN.houses?FIN.houses:[];
+  finOK=true; setTimeout(finTick,4000);
+ });
+};
+function finTick(){
+ if(!finOK||!currentUser) return;
+ const n=new Date(), m=n.getFullYear()+'-'+(n.getMonth()+1);
+ // 12. Налог раз в реальный месяц
+ if(FIN.taxM!==m){
+  if(FIN.taxM){
+   const hv=FIN.houses.reduce((a,h)=>a+HOUSES[h][1],0);
+   FIN.bill=Math.floor(FIN.bill*1.1)+50000+Math.floor(hv*0.004);
+   if(FIN.mort) FIN.mort=Math.floor(FIN.mort*1.02);
+   notify('🧾 Налог за месяц','К оплате: '+formatMoney(FIN.bill));
+  }
+  FIN.taxM=m; finSave();
+ }
+ // 10. Коллекторы
+ if(FIN.loan>0&&Date.now()>FIN.due&&!FIN.col){
+  let need=FIN.loan; const it=[];
+  playerCollection.forEach((p,i)=>it.push({t:'p',i,v:p.price||0}));
+  garage.forEach((c,i)=>it.push({t:'c',i,v:Math.floor((CARS[c.m]||CARS[0]).p*0.8)}));
+  it.sort((a,b)=>b.v-a.v);
+  const take=[]; for(const x of it){ if(need<=0) break; take.push(x); need-=x.v; }
+  take.filter(x=>x.t==='p').sort((a,b)=>b.i-a.i).forEach(x=>FIN.sp.push(playerCollection.splice(x.i,1)[0]));
+  take.filter(x=>x.t==='c').sort((a,b)=>b.i-a.i).forEach(x=>FIN.sc.push(garage.splice(x.i,1)[0]));
+  FIN.col=1; saveCollection(); saveGarage(); finSave();
+  alert('🕴 Коллекторы забрали имущество за долг! Погасите кредит в Банке, чтобы вернуть его.');
+ }
+}
+setInterval(finTick,60000);
+
+// 10. Банк
+function openBank(){
+ if(!currentUser) return alert('Сначала войдите!');
+ let h='<h3>🏦 Банк</h3>';
+ if(FIN.loan>0) h+='<p>Долг: <b>'+formatMoney(FIN.loan)+'</b><br>Срок: '+new Date(FIN.due).toLocaleDateString('ru-RU')+(FIN.col?'<br><b style="color:#ff5b5b">У коллекторов: '+(FIN.sp.length+FIN.sc.length)+' шт.</b>':'')+'</p><button onclick="bankPay()">Погасить</button>';
+ else h+='<p style="font-size:.85rem;color:#aaa">Кредит на 7 дней под 20%. Не вернёшь вовремя — коллекторы заберут имущество.</p><input id="bk-sum" type="number" placeholder="Сумма (любая)"><button onclick="bankTake()">Взять кредит</button>';
+ box('bank-modal',h);
+}
+function bankTake(){
+ const v=Math.floor(+document.getElementById('bk-sum').value);
+ if(!(v>=1000)) return alert('От 1 000'); 
+ FIN.loan=Math.floor(v*1.2); FIN.due=Date.now()+7*864e5; FIN.col=0;
+ updateBalance(v); finSave(); openBank();
+}
+function bankPay(){
+ const s=prompt('Сколько внести? Долг: '+FIN.loan,FIN.loan); if(s===null) return;
+ const v=Math.min(Math.floor(+s)||0,FIN.loan);
+ if(v<=0) return; if(v>balance) return alert('Недостаточно денег');
+ updateBalance(-v); FIN.loan-=v;
+ if(FIN.loan<=0){
+  FIN.loan=0;
+  if(FIN.col){ FIN.sp.forEach(p=>playerCollection.push(p)); FIN.sc.forEach(c=>garage.push(c)); FIN.sp=[]; FIN.sc=[]; FIN.col=0; saveCollection(); saveGarage(); alert('✅ Имущество возвращено!'); }
+ }
+ finSave(); openBank();
+}
+
+// 11. Дома и ипотека
+function openHouses(){
+ if(!currentUser) return alert('Сначала войдите!');
+  let h='<h3>🏠 Недвижимость</h3>'+(FIN.mort?'<p>Ипотека: <b>'+formatMoney(FIN.mort)+'</b> (+2% в месяц)</p><button onclick="mortPay()">Платить по ипотеке</button>':'')+'<p style="font-size:.85rem;color:#aaa">Ипотека: взнос 20%, остальное в долг.</p>';
+   HOUSES.forEach((x,i)=>{
+  h+='<div class="list-item"><span>'+x[0]+'<br><small>'+formatMoney(x[1])+'</small></span>'+(FIN.houses.includes(i)?'<b>✅</b>':'<span><button onclick="houseBuy('+i+',0)" style="width:auto;padding:6px 10px;margin:2px">Купить</button><button onclick="houseBuy('+i+',1)" style="width:auto;padding:6px 10px;margin:2px;background:#555">Ипотека</button></span>')+'</div>';
+ });
+ box('house-modal',h);
+}
+function houseBuy(i,m){
+ const p=HOUSES[i][1];
+ if(m){
+  if(FIN.mort>0) return alert('Сначала погасите текущую ипотеку');
+  const d=p*0.2; if(balance<d) return alert('Нужен взнос '+formatMoney(d));
+  updateBalance(-d); FIN.mort=p-d;
+ } else { if(balance<p) return alert('Недостаточно денег'); updateBalance(-p); }
+ FIN.houses.push(i); finSave(); openHouses();
+}
+function mortPay(){
+ const s=prompt('Сколько внести? Долг: '+FIN.mort,FIN.mort); if(s===null) return;
+ const v=Math.min(Math.floor(+s)||0,FIN.mort);
+ if(v<=0) return; if(v>balance) return alert('Недостаточно денег');
+ updateBalance(-v); FIN.mort-=v; finSave(); openHouses();
+}
+
+// 12. Налоги
+function openTax(){
+ if(!currentUser) return alert('Сначала войдите!');
+ box('tax-modal','<h3>🧾 Налоги</h3><p style="font-size:.85rem;color:#aaa">Раз в реальный месяц: 50 000 + 0,4% от стоимости домов. Неоплаченное растёт на 10% в месяц.</p><p>К оплате: <b>'+formatMoney(FIN.bill)+'</b></p>'+(FIN.bill?'<button onclick="taxPay()">Оплатить</button>':'<p>Долгов нет ✅</p>'));
+}
+function taxPay(){
+ if(balance<FIN.bill) return alert('Недостаточно денег');
+ updateBalance(-FIN.bill); FIN.bill=0; finSave(); openTax();
+}
+
+// 13. Телефон
+function openPhone(){
+ const a=[['🎰','Выпадение','openDrop'],['🏦','Банк','openBank'],['🏠','Дома','openHouses'],['🧾','Налоги','openTax'],['💬','Чаты','openChats'],['🏁','Гонки','openRace'],['🚗','Гараж','openGarage'],['🛒','Рынок','openMarketModal'],['🏰','Кланы','openClans']];
+  const t=new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
+ box('phone-modal','<div style="background:#000;border:3px solid #444;border-radius:28px;padding:16px"><div style="display:flex;justify-content:space-between;font-size:.8rem;color:#aaa"><span>'+t+'</span><span>'+formatMoney(balance)+'</span></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px">'+a.map(x=>'<div onclick="closeModal(\'phone-modal\');(window.'+x[2]+'?window.'+x[2]+':function(){alert(\'Скоро\')})()" style="background:#1f2a3a;border-radius:16px;padding:12px 4px;text-align:center;font-size:.75rem"><div style="font-size:1.8rem">'+x[0]+'</div>'+x[1]+'</div>').join('')+'</div></div>');
+ }
+ (function(){
+ const b=document.createElement('button');
+ b.textContent='📱'; b.onclick=openPhone;
+ b.style.cssText='position:fixed;right:10px;bottom:10px;z-index:90;width:50px;height:50px;border:0;border-radius:50%;font-size:1.5rem;background:#007bff;box-shadow:0 4px 12px rgba(0,0,0,.5)';
+ document.body.appendChild(b);
+})();
+// ===== ДОП.: убрать кнопки Кланы и Телефон, телефон теперь в "Ещё" =====
+(function(){
+ document.querySelectorAll('body > button').forEach(function(b){
+  var t=b.textContent;
+  if(t.indexOf('Кланы')>-1) b.remove();
+  else if(t.indexOf('📱')>-1) b.remove();
+ });
+ var _omPh=openMore;
+ openMore=function(){
+  _omPh();
+  var g=document.querySelector('#more-modal .mgrid');
+  if(!g) return;
+  var b=document.createElement('button');
+  b.innerHTML='<span>📱</span>Телефон';
+  b.onclick=function(){ goTab(openPhone); };
+  g.appendChild(b);
+ };
+})();
+// 1. Бан по устройству и на время
+const DEV=(()=>{let d=localStorage.getItem('dev_id'); if(!d){d='d'+Math.random().toString(36).slice(2)+Date.now().toString(36); localStorage.setItem('dev_id',d);} return d;})();
+let _banUser=null, _bt={t:null,d:null}, _btm=null;
+function banActive(v){ return v && (v.until===0 || v.until>Date.now()); }
+function banCheck(){
+ const v=[_bt.t,_bt.d].filter(banActive);
+ let o=document.getElementById('ban2-ov');
+ if(!v.length){ if(o) o.remove(); return; }
+ const u=Math.max(...v.map(x=>x.until===0?Infinity:x.until));
+ const txt=u===Infinity?'навсегда':'до '+new Date(u).toLocaleString('ru-RU');
+ if(!o){ o=document.createElement('div'); o.id='ban2-ov'; o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:99999;display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:center;color:#fff;font-size:1.3rem;text-align:center;padding:20px'; document.body.appendChild(o); }
+ o.innerHTML='🚫 Доступ заблокирован<small style="color:#aaa">Бан '+txt+'</small>';
+ clearTimeout(_btm); if(u!==Infinity) _btm=setTimeout(banCheck,Math.min(u-Date.now()+500,2147483647));
+}
+db.ref('dbans/'+DEV).on('value',s=>{_bt.d=s.val(); banCheck();});
+const _lu1=loginUser;
+loginUser=function(u){
+ _lu1(u);
+ const k=ukey(u);
+ db.ref('udev/'+k).set(DEV);
+ if(_banUser) db.ref('tbans/'+_banUser).off();
+ _banUser=k;
+ db.ref('tbans/'+k).on('value',s=>{_bt.t=s.val(); banCheck();});
+};
+function axTBan(){
+ if(!axOwner()) return;
+ const n=axV('ax-name'); if(!n) return alert('Введи ник игрока');
+ const k=ukey(n); if(k==='deadk1ra') return alert('Нельзя банить создателя');
+ const m=prompt('На сколько минут? (0 — навсегда)','60'); if(m===null) return;
+ const mins=Math.max(0,Math.floor(+m)||0), until=mins?Date.now()+mins*60000:0;
+ const dev=confirm('Забанить также по устройству игрока?');
+ db.ref('tbans/'+k).set({until}).then(()=>{
+  if(!dev) return alert('Забанен: '+n);
+  return db.ref('udev/'+k).once('value').then(s=>{
+   if(!s.val()) return alert('Ник забанен, но устройство игрока пока неизвестно (он ещё не заходил после обновления)');
+   return db.ref('dbans/'+s.val()).set({until}).then(()=>alert('Забанены ник и устройство: '+n));
+  });
+ });
+}
+function axTUnban(){
+ if(!axOwner()) return;
+ const n=axV('ax-name'); if(!n) return alert('Введи ник игрока');
+ const k=ukey(n);
+ db.ref('tbans/'+k).remove(); db.ref('bans/'+k).remove();
+ db.ref('udev/'+k).once('value').then(s=>{ if(s.val()) db.ref('dbans/'+s.val()).remove(); alert('Разбанен (ник и устройство): '+n); });
+}
+const _oa9=openAdmin;
+openAdmin=function(){
+ _oa9();
+ const g=document.querySelector('#ax-more .mgrid, #adm-extra .mgrid');
+ if(!g||document.getElementById('ax-tb')) return;
+ [['⏱','Бан на время / по устройству','axTBan()','ax-tb'],['✅','Снять все баны','axTUnban()','ax-ub']].forEach(x=>{
+  const b=document.createElement('button'); b.id=x[3]; b.innerHTML='<span>'+x[0]+'</span>'+x[1]; b.setAttribute('onclick',x[2]); g.appendChild(b);
+ });
+};
+
+// 5. Кланы (базовая версия)
+const ckey=n=>n.toLowerCase().replace(/[.#$\/\[\]\s]/g,'_');
+async function openClans(){
+ if(!currentUser) return alert('Сначала войдите!');
+ const me=ukey(currentUser);
+ const mc=(await db.ref('uclan/'+me).once('value')).val();
+ const all=(await db.ref('clans').once('value')).val()||{};
+ let h='<h3>🏰 Кланы</h3>';
+ if(mc&&all[mc]){
+  const c=all[mc], ms=Object.values(c.members||{});
+  h+=<p><b>${esc(c.name)}</b> · глава: ${esc(c.ownerName)}</p><p style="font-size:.85rem;color:#aaa">Участников: ${ms.length}<br>${ms.map(esc).join(', ')}</p><button onclick="clanLeave('${mc}')" style="background:#c0392b">Покинуть клан</button>;
+ } else {
+  h+='<input id="cl-name" placeholder="Название клана" maxlength="20"><button onclick="clanCreate()">Создать (500 000 $)</button><p style="color:#aaa;font-size:.85rem">Или вступи:</p>';
 </script>
