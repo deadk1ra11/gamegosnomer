@@ -4593,7 +4593,7 @@ function taxPay(){
 
 // 13. Телефон
 function openPhone(){
- const a=[['🎰','Выпадение','openDrop'],['🏦','Банк','openBank'],['🏠','Дома','openHouses'],['🧾','Налоги','openTax'],['💬','Чаты','openChats'],['🏁','Гонки','openRace'],['🚗','Гараж','openGarage'],['🛒','Рынок','openMarketModal'],['🏰','Кланы','openClans']];
+ const a=[['🏦','Банк','openBank'],['🏠','Дома','openHouses'],['🧾','Налоги','openTax'],['💬','Чаты','openChats'],['🏁','Гонки','openRace'],['🚗','Гараж','openGarage'],['🛒','Рынок','openMarketModal'],['🏰','Кланы','openClans']];
   const t=new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
  box('phone-modal','<div style="background:#000;border:3px solid #444;border-radius:28px;padding:16px"><div style="display:flex;justify-content:space-between;font-size:.8rem;color:#aaa"><span>'+t+'</span><span>'+formatMoney(balance)+'</span></div><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px">'+a.map(x=>'<div onclick="closeModal(\'phone-modal\');(window.'+x[2]+'?window.'+x[2]+':function(){alert(\'Скоро\')})()" style="background:#1f2a3a;border-radius:16px;padding:12px 4px;text-align:center;font-size:.75rem"><div style="font-size:1.8rem">'+x[0]+'</div>'+x[1]+'</div>').join('')+'</div></div>');
  }
@@ -4621,73 +4621,18 @@ function openPhone(){
   g.appendChild(b);
  };
 })();
-// 1. Бан по устройству и на время
-const DEV=(()=>{let d=localStorage.getItem('dev_id'); if(!d){d='d'+Math.random().toString(36).slice(2)+Date.now().toString(36); localStorage.setItem('dev_id',d);} return d;})();
-let _banUser=null, _bt={t:null,d:null}, _btm=null;
-function banActive(v){ return v && (v.until===0 || v.until>Date.now()); }
-function banCheck(){
- const v=[_bt.t,_bt.d].filter(banActive);
- let o=document.getElementById('ban2-ov');
- if(!v.length){ if(o) o.remove(); return; }
- const u=Math.max(...v.map(x=>x.until===0?Infinity:x.until));
- const txt=u===Infinity?'навсегда':'до '+new Date(u).toLocaleString('ru-RU');
- if(!o){ o=document.createElement('div'); o.id='ban2-ov'; o.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:99999;display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:center;color:#fff;font-size:1.3rem;text-align:center;padding:20px'; document.body.appendChild(o); }
- o.innerHTML='🚫 Доступ заблокирован<small style="color:#aaa">Бан '+txt+'</small>';
- clearTimeout(_btm); if(u!==Infinity) _btm=setTimeout(banCheck,Math.min(u-Date.now()+500,2147483647));
-}
-db.ref('dbans/'+DEV).on('value',s=>{_bt.d=s.val(); banCheck();});
-const _lu1=loginUser;
-loginUser=function(u){
- _lu1(u);
- const k=ukey(u);
- db.ref('udev/'+k).set(DEV);
- if(_banUser) db.ref('tbans/'+_banUser).off();
- _banUser=k;
- db.ref('tbans/'+k).on('value',s=>{_bt.t=s.val(); banCheck();});
-};
-function axTBan(){
- if(!axOwner()) return;
- const n=axV('ax-name'); if(!n) return alert('Введи ник игрока');
- const k=ukey(n); if(k==='deadk1ra') return alert('Нельзя банить создателя');
- const m=prompt('На сколько минут? (0 — навсегда)','60'); if(m===null) return;
- const mins=Math.max(0,Math.floor(+m)||0), until=mins?Date.now()+mins*60000:0;
- const dev=confirm('Забанить также по устройству игрока?');
- db.ref('tbans/'+k).set({until}).then(()=>{
-  if(!dev) return alert('Забанен: '+n);
-  return db.ref('udev/'+k).once('value').then(s=>{
-   if(!s.val()) return alert('Ник забанен, но устройство игрока пока неизвестно (он ещё не заходил после обновления)');
-   return db.ref('dbans/'+s.val()).set({until}).then(()=>alert('Забанены ник и устройство: '+n));
-  });
- });
-}
-function axTUnban(){
- if(!axOwner()) return;
- const n=axV('ax-name'); if(!n) return alert('Введи ник игрока');
- const k=ukey(n);
- db.ref('tbans/'+k).remove(); db.ref('bans/'+k).remove();
- db.ref('udev/'+k).once('value').then(s=>{ if(s.val()) db.ref('dbans/'+s.val()).remove(); alert('Разбанен (ник и устройство): '+n); });
-}
-const _oa9=openAdmin;
-openAdmin=function(){
- _oa9();
- const g=document.querySelector('#ax-more .mgrid, #adm-extra .mgrid');
- if(!g||document.getElementById('ax-tb')) return;
- [['⏱','Бан на время / по устройству','axTBan()','ax-tb'],['✅','Снять все баны','axTUnban()','ax-ub']].forEach(x=>{
-  const b=document.createElement('button'); b.id=x[3]; b.innerHTML='<span>'+x[0]+'</span>'+x[1]; b.setAttribute('onclick',x[2]); g.appendChild(b);
- });
+// Добавление кнопки «Выпадение» в админ-панель
+const _oaDrop = openAdmin;
+openAdmin = function(){
+  _oaDrop();
+  if(!currentUser || currentUser.toLowerCase() !== 'deadk1ra') return; // если доступ нужен только главному создателю
+  const g = document.querySelector('#ax-more .mgrid, #adm-extra .mgrid');
+  if(!g || document.getElementById('ax-drop')) return;
+  const b = document.createElement('button');
+  b.id = 'ax-drop';
+  b.innerHTML = '<span>🎲</span>Шанс выпадения';
+  b.onclick = openDrop;
+  g.appendChild(b);
 };
 
-// 5. Кланы (базовая версия)
-const ckey=n=>n.toLowerCase().replace(/[.#$\/\[\]\s]/g,'_');
-async function openClans(){
- if(!currentUser) return alert('Сначала войдите!');
- const me=ukey(currentUser);
- const mc=(await db.ref('uclan/'+me).once('value')).val();
- const all=(await db.ref('clans').once('value')).val()||{};
- let h='<h3>🏰 Кланы</h3>';
- if(mc&&all[mc]){
-  const c=all[mc], ms=Object.values(c.members||{});
-  h+=<p><b>${esc(c.name)}</b> · глава: ${esc(c.ownerName)}</p><p style="font-size:.85rem;color:#aaa">Участников: ${ms.length}<br>${ms.map(esc).join(', ')}</p><button onclick="clanLeave('${mc}')" style="background:#c0392b">Покинуть клан</button>;
- } else {
-  h+='<input id="cl-name" placeholder="Название клана" maxlength="20"><button onclick="clanCreate()">Создать (500 000 $)</button><p style="color:#aaa;font-size:.85rem">Или вступи:</p>';
 </script>
