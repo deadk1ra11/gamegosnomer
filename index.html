@@ -9,6 +9,30 @@
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
         <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script>
+if (typeof firebase === 'undefined') {
+  ['app', 'auth', 'database'].forEach(function(n){
+    document.write('<script src="https://cdn.jsdelivr.net/npm/firebase@9.22.0/firebase-' + n + '-compat.js"><\/script>');
+  });
+}
+</script>
+<script>
+if (typeof firebase === 'undefined') {
+  ['app', 'auth', 'database'].forEach(function(n){
+    document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-' + n + '-compat.min.js"><\/script>');
+  });
+}
+</script>
+<script>
+if (typeof firebase === 'undefined') {
+  window.addEventListener('DOMContentLoaded', function(){
+    var d = document.createElement('div');
+    d.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:999999;background:#c0392b;color:#fff;padding:12px;text-align:center;font-family:sans-serif';
+    d.textContent = '⚠️ Нет связи с сервером игры. Проверь интернет и перезагрузи страницу.';
+    document.body.appendChild(d);
+  });
+}
+</script>
     <style>
         * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
         body {
@@ -4808,5 +4832,638 @@ openCollectionModal = function(){
   c.insertBefore(sel, cards[0].el);
   cards.sort((SORTS[collSort] || SORTS.def)[0]).forEach(x => c.appendChild(x.el));
 };
-
+// ===== Шанс «Абсолютного Эксклюзива» =====
+const GOD_EXTRA = 0.004; // дополнительный шанс: 0.4% на каждую крутку
+const _gpGod = generatePlateData;
+generatePlateData = function(){
+  const d = _gpGod();
+  if(godModeActive || DROP || d.rarityClass === 'godlike' || /Именной/.test(d.rarityText || '')) return d;
+  if(Math.random() >= GOD_EXTRA) return d;
+  const R = REGIONS_DATA.find(r => !r.all && r.codes.indexOf(d.region) >= 0) || {mult: 1};
+  const k = typeof PRICE_K !== 'undefined' ? PRICE_K : 1;
+  d.plate = mkPlate('godlike').plate;
+  d.rarityClass = 'godlike';
+  d.rarityText = RTXT.godlike + (d.ptype ? ' · ' + PT[d.ptype].n : '');
+  d.price = Math.floor((RPR.godlike[0] + Math.random() * (RPR.godlike[1] - RPR.godlike[0])) * R.mult * (d.ptype ? PT[d.ptype].m : 1) * k);
+  return d;
+};
+// ===== Возврат названия «Абсолютный Эксклюзив» =====
+const GOD_OLD = '👑 Божественный', GOD_NEW = '👑 Абсолютный Эксклюзив!';
+RTXT.godlike = GOD_NEW;
+const _gpLbl = generatePlateData;
+generatePlateData = function(){
+  const d = _gpLbl();
+  if(d.rarityClass === 'godlike' && (d.rarityText || '').indexOf(GOD_OLD) === 0)
+    d.rarityText = d.rarityText.replace(GOD_OLD, GOD_NEW);
+  return d;
+};
+const _ocLbl = openCollectionModal;
+openCollectionModal = function(){
+  _ocLbl();
+  const c = document.getElementById('collection-items');
+  if(!c) return;
+  const w = document.createTreeWalker(c, NodeFilter.SHOW_TEXT);
+  let n;
+  while((n = w.nextNode())) if(n.nodeValue.indexOf(GOD_OLD) >= 0) n.nodeValue = n.nodeValue.replace(GOD_OLD, GOD_NEW);
+};
+// ===== Дома: подтверждение покупки и показ ошибки =====
+const _hbSafe = houseBuy;
+houseBuy = function(i, m){
+  const x = HOUSES[i];
+  if(!x) return;
+  if(!confirm((m ? 'Взять в ипотеку: ' : 'Купить: ') + x[0] + ' за ' + formatMoney(x[1]) + '?')) return;
+  try{ _hbSafe(i, m); }
+  catch(e){ alert('Ошибка покупки дома: ' + (e && e.message ? e.message : e)); }
+};
+// ===== Банк: вернуть имущество у коллекторов (для админа) =====
+async function finRestore(){
+  const n = prompt('Ник игрока:'); if(!n) return;
+  const k = ukey(n);
+  const f = (await db.ref('fin/' + k).once('value')).val();
+  if(!f) return alert('У игрока нет данных банка');
+  const arr = v => v ? (Array.isArray(v) ? v.filter(Boolean) : Object.values(v)) : [];
+  const sp = arr(f.sp), sc = arr(f.sc);
+  if(!sp.length && !sc.length) return alert('Коллекторы у игрока ничего не забирали');
+  if(!confirm('Вернуть ' + sp.length + ' номеров и ' + sc.length + ' машин и обнулить долг?')) return;
+  const c = arr((await db.ref('collections/' + k).once('value')).val());
+  const g = arr((await db.ref('garages/' + k).once('value')).val());
+  await db.ref('collections/' + k).set(c.concat(sp));
+  await db.ref('garages/' + k).set(g.concat(sc));
+  await db.ref('fin/' + k).update({loan: 0, due: 0, col: 0, sp: null, sc: null});
+  alert('Готово! Вернул номеров: ' + sp.length + ', машин: ' + sc.length + '. Пусть игрок перезайдёт.');
+}
+const _oaFin = openAdmin;
+openAdmin = function(){
+  _oaFin();
+  if(!currentUser || currentUser.toLowerCase() !== 'deadk1ra') return;
+  const g = document.querySelector('#ax-more .mgrid, #adm-extra .mgrid');
+  if(!g || document.getElementById('ax-fin')) return;
+  const b = document.createElement('button');
+  b.id = 'ax-fin'; b.innerHTML = '<span>🕴</span>Вернуть имущество'; b.onclick = finRestore;
+  g.appendChild(b);
+};
+// ===== Автосписание долга перед сроком, если хватает денег =====
+function finAutoPay(){
+  if(!finOK || !currentUser || !(FIN.loan > 0) || FIN.col) return;
+  if(Date.now() < FIN.due - 36e5 || balance < FIN.loan) return;
+  updateBalance(-FIN.loan); FIN.loan = 0; FIN.due = 0; finSave();
+  notify('🏦 Банк', 'Кредит погашен автоматически');
+}
+const _luAuto = loginUser;
+loginUser = function(u){
+  _luAuto(u);
+  const t = setInterval(() => { if(finOK){ clearInterval(t); setTimeout(finAutoPay, 2500); } }, 200);
+};
+setInterval(finAutoPay, 20000);
+// ===== Избранные номера в коллекции ⭐ =====
+let FAV = [];
+try{ FAV = JSON.parse(localStorage.getItem('favp') || '[]'); }catch(e){}
+const favKey = p => p.plate + '|' + p.region;
+const _ocFav = openCollectionModal;
+openCollectionModal = function(){
+  _ocFav();
+  const c = document.getElementById('collection-items');
+  if(!c) return;
+  const top = [];
+  Array.from(c.children).forEach(el => {
+    const m = /sellSelectedPlate\((\d+)\)/.exec(el.innerHTML);
+    const p = m && playerCollection[+m[1]];
+    if(!p) return;
+    const key = favKey(p), on = FAV.indexOf(key) >= 0;
+    const s = document.createElement('span');
+    s.textContent = on ? '⭐' : '☆';
+    s.style.cssText = 'position:absolute;top:6px;right:10px;font-size:1.5rem;cursor:pointer;z-index:2';
+    s.onclick = e => {
+      e.stopPropagation();
+      FAV = on ? FAV.filter(x => x !== key) : FAV.concat(key);
+      localStorage.setItem('favp', JSON.stringify(FAV));
+      openCollectionModal();
+    };
+    el.style.position = 'relative';
+    el.appendChild(s);
+    if(on) top.push(el);
+  });
+  const sel = c.querySelector('select');
+  const ref = sel ? sel.nextSibling : (c.firstElementChild ? c.firstElementChild.nextSibling : null);
+  top.reverse().forEach(el => c.insertBefore(el, ref));
+};
+// ===== Избранные не продаются кнопкой «Продать всё» =====
+const _saFav = sellAllCollection;
+sellAllCollection = function(){
+  const isFav = p => FAV.indexOf(favKey(p)) >= 0;
+  if(!playerCollection.some(isFav)) return _saFav();
+  const sell = playerCollection.filter(p => !isFav(p));
+  if(!sell.length) return alert('Все номера в избранном ⭐, продавать нечего');
+  const sum = sell.reduce((a, p) => a + (p.price || 0), 0);
+  playerCollection = playerCollection.filter(isFav);
+  updateBalance(sum);
+  saveCollection();
+  qAdd('sell');
+};
+// ===== Поиск по коллекции =====
+let collQuery = '';
+const _ocSrch = openCollectionModal;
+openCollectionModal = function(){
+  _ocSrch();
+  const c = document.getElementById('collection-items');
+  if(!c) return;
+  const cards = Array.from(c.children).filter(el => /sellSelectedPlate\(\d+\)/.test(el.innerHTML));
+  if(!cards.length) return;
+  const inp = document.createElement('input');
+  inp.placeholder = '🔎 Поиск по номеру...';
+  inp.value = collQuery;
+  inp.style.cssText = 'width:100%;padding:10px;margin-bottom:8px;border-radius:12px;border:1px solid #333652;background:#0d0f18;color:#fff;box-sizing:border-box';
+  const apply = () => {
+    collQuery = inp.value;
+    const q = inp.value.trim().toLowerCase();
+    cards.forEach(el => {
+      const t = (el.querySelector('.number-plate') || el).textContent.toLowerCase();
+      el.style.display = (!q || t.indexOf(q) >= 0) ? '' : 'none';
+    });
+  };
+  inp.oninput = apply;
+  c.insertBefore(inp, c.querySelector('select') || cards[0]);
+  apply();
+};
+// ===== 📈 Моя статистика =====
+function openMyStats(){
+  if(!currentUser) return alert('Сначала войдите!');
+  const all = playerCollection.concat(safeList);
+  const by = {};
+  all.forEach(p => { const r = p.rarityClass || 'common'; by[r] = (by[r] || 0) + 1; });
+  const total = all.reduce((a, p) => a + (p.price || 0), 0);
+  const best = all.reduce((b, p) => (!b || (p.price || 0) > (b.price || 0)) ? p : b, null);
+  const names = {common:'Обычные', uncommon:'Зеркальные', rare:'Редкие', epic:'Эпические', legendary:'Легендарные', godlike:'Эксклюзивы'};
+  const row = (a, b) => '<div class="list-item"><span>' + a + '</span><b>' + b + '</b></div>';
+  const houses = FIN && FIN.houses ? FIN.houses.length : 0;
+  box('mystats-modal', '<h3>📈 Моя статистика</h3>' +
+    row('💰 Баланс', formatMoney(balance)) +
+    row('🗂 Номеров (с сейфом)', all.length) +
+    row('💎 Стоимость номеров', formatMoney(total)) +
+    (best ? row('🏆 Лучший номер', esc(best.plate + ' ' + best.region)) : '') +
+    row('⭐ В избранном', FAV.length) +
+    row('🚗 Машин', garage.length) +
+    row('🏠 Домов', houses) +
+    Object.keys(names).filter(k => by[k]).map(k => row(names[k], by[k])).join(''));
+}
+const _omSt = openMore;
+openMore = function(){
+  _omSt();
+  const g = document.querySelector('#more-modal .mgrid');
+  if(!g) return;
+  const b = document.createElement('button');
+  b.innerHTML = '<span>📈</span>Моя статистика';
+  b.onclick = () => goTab(openMyStats);
+  g.appendChild(b);
+};
+// ===== Админка: досье игрока, долги, чат клана =====
+const axNick = () => { const n = axV('ax-name'); if(!n) alert('Впиши ник игрока в поле выше'); return n; };
+async function axDossier(){
+  const n = axNick(); if(!n) return;
+  const k = ukey(n);
+  const get = path => db.ref(path).once('value').then(s => s.val());
+  const [u, col, gar, fin, cl] = await Promise.all([
+    get('users/' + n.toLowerCase()), get('collections/' + k), get('garages/' + k), get('fin/' + k), get('uclan/' + k)
+  ]);
+  if(!u) return alert('Игрок не найден');
+  const arr = v => v ? (Array.isArray(v) ? v.filter(Boolean) : Object.values(v)) : [];
+  const c = arr(col), f = fin || {};
+  const total = c.reduce((a, p) => a + (p.price || 0), 0);
+  alert('👤 ' + n + '\n💰 Баланс: ' + formatMoney(u.balance || 0) +
+    '\n🗂 Номеров: ' + c.length + ' на ' + formatMoney(total) +
+    '\n🚗 Машин: ' + arr(gar).length +
+    '\n🏦 Долг: ' + formatMoney(f.loan || 0) + (f.col ? ' (у коллекторов: ' + (arr(f.sp).length + arr(f.sc).length) + ')' : '') +
+    '\n🏠 Ипотека: ' + formatMoney(f.mort || 0) +
+    '\n🧾 Налог: ' + formatMoney(f.bill || 0) +
+    '\n🏰 Клан: ' + (cl || 'нет'));
+}
+async function axDebtClear(){
+  const n = axNick(); if(!n) return;
+  if(!confirm('Обнулить кредит, ипотеку и налог у ' + n + '?')) return;
+  await db.ref('fin/' + ukey(n)).update({loan: 0, due: 0, mort: 0, bill: 0});
+  alert('Долги обнулены. Пусть игрок перезайдёт.');
+}
+async function axClanChatClear(){
+  const n = axNick(); if(!n) return;
+  const k = (await db.ref('uclan/' + ukey(n)).once('value')).val();
+  if(!k) return alert('Игрок не в клане');
+  if(!confirm('Очистить чат клана игрока ' + n + '?')) return;
+  await db.ref('clanchat/' + k).remove();
+  alert('Чат клана очищен');
+}
+const _oaDos = openAdmin;
+openAdmin = function(){
+  _oaDos();
+  if(!currentUser || currentUser.toLowerCase() !== 'deadk1ra') return;
+  const g = document.querySelector('#ax-more .mgrid, #adm-extra .mgrid');
+  if(!g || document.getElementById('ax-dos')) return;
+  [['ax-dos','🔍','Досье игрока',axDossier], ['ax-debt','💸','Обнулить долги',axDebtClear], ['ax-cc','🧹','Чистка чата клана',axClanChatClear]].forEach(x => {
+    const b = document.createElement('button');
+    b.id = x[0]; b.innerHTML = '<span>' + x[1] + '</span>' + x[2]; b.onclick = x[3];
+    g.appendChild(b);
+  });
+};
+// ===== Уведомления вместо окон (очередь) =====
+const NQ = []; let nqBusy = false;
+function toastQ(title, text){
+  NQ.push([title, text]);
+  if(nqBusy) return;
+  nqBusy = true;
+  const next = () => {
+    const x = NQ.shift();
+    if(!x){ nqBusy = false; return; }
+    notify(x[0], x[1]);
+    setTimeout(next, 3600);
+  };
+  next();
+}
+const _alertWin = window.alert;
+window.alert = function(msg){
+  const s = String(msg), lines = s.split('\n');
+  if(/^(📅|🏅|🎁|🔥|✅|🎉)/.test(s) || (lines.length === 1 && s.length <= 70)){
+    if(lines.length > 1) toastQ(lines[0], lines.slice(1).join(' '));
+    else toastQ('Игра', s);
+    return;
+  }
+  _alertWin(msg);
+};
+// ===== Задания по дням недели =====
+const DAYN = ['Воскресенье','Понедельник','Вторник','Среда','Четверг','Пятница','Суббота'];
+const QRK = {common:0, uncommon:1, rare:2, epic:3, legendary:4, godlike:5};
+const WEEK = [
+  [{id:'spin', n:20, t:'🎰 Крутить 20 раз', r:15000}, {id:'great', n:1, t:'🔥 Выбить редкий номер', r:15000}, {id:'sell', n:5, t:'💵 Продать 5 номеров', r:6000}],
+  [{id:'spin', n:5, t:'🎰 Крутить 5 раз', r:3000}, {id:'sell', n:1, t:'💵 Продать номер', r:2000}, {id:'chat', n:1, t:'💬 Написать в чат', r:1000}],
+  [{id:'spin', n:10, t:'🎰 Крутить 10 раз', r:6000}, {id:'safe', n:1, t:'🔒 Спрятать номер в сейф', r:2000}, {id:'good', n:1, t:'🪞 Выбить зеркальный или лучше', r:4000}],
+  [{id:'sell', n:3, t:'💵 Продать 3 номера', r:5000}, {id:'good', n:2, t:'🪞 Два номера зеркальных и лучше', r:6000}, {id:'chat', n:2, t:'💬 Написать в чат 2 раза', r:2000}],
+  [{id:'spin', n:8, t:'🎰 Крутить 8 раз', r:5000}, {id:'market', n:1, t:'🏪 Выставить номер на рынок', r:3000}, {id:'chat', n:1, t:'💬 Написать в чат', r:1000}],
+  [{id:'spin', n:15, t:'🎰 Крутить 15 раз', r:10000}, {id:'sell', n:2, t:'💵 Продать 2 номера', r:3000}, {id:'clan', n:1, t:'🏰 Написать в чат клана', r:2000}],
+  [{id:'good', n:3, t:'🪞 Три номера зеркальных и лучше', r:9000}, {id:'safe', n:2, t:'🔒 Спрятать 2 номера в сейф', r:3000}, {id:'chat', n:3, t:'💬 Написать в чат 3 раза', r:3000}]
+];
+const qDay = () => new Date(today() + 'T00:00:00Z').getUTCDay();
+function applyDayQuests(){ QUESTS.length = 0; WEEK[qDay()].forEach(x => QUESTS.push(x)); }
+applyDayQuests();
+const _qAddW = qAdd;
+qAdd = function(k){ applyDayQuests(); _qAddW(k); };
+const _oqW = openQuests;
+openQuests = function(){
+  applyDayQuests(); _oqW();
+  const h = document.querySelector('#q-modal h3');
+  if(h) h.textContent = '📅 Задания: ' + DAYN[qDay()];
+};
+const _spQ = spinNumber;
+spinNumber = function(){
+  const n = playerCollection.length;
+  _spQ();
+  if(playerCollection.length > n){
+    const r = QRK[(playerCollection[playerCollection.length - 1] || {}).rarityClass] || 0;
+    if(r >= 1) qAdd('good');
+    if(r >= 2) qAdd('great');
+  }
+};
+const _tsQ = toSafe;
+toSafe = function(i){ const n = safeList.length; _tsQ(i); if(safeList.length > n) qAdd('safe'); };
+const _pmQ = putOnMarket;
+putOnMarket = function(i){
+  const n = playerCollection.length; _pmQ(i);
+  setTimeout(() => { if(playerCollection.length < n) qAdd('market'); }, 1500);
+};
+const _ccQ = clanChatSend;
+clanChatSend = function(){ const t = ccLast; _ccQ(); if(ccLast !== t) qAdd('clan'); };
+setInterval(() => {
+  if(!currentUser || !qLoaded) return;
+  const key = 'qnote_' + ukey(currentUser);
+  if(localStorage.getItem(key) === today()) return;
+  localStorage.setItem(key, today());
+  toastQ('📅 Новые задания', DAYN[qDay()] + ': ' + WEEK[qDay()].length + ' задания ждут тебя');
+}, 4000);
+// ===== Больше достижений, экран достижений, серия входов =====
+ACH.push(
+  {id:'fifty', t:'🎒 50 номеров (с сейфом)', r:25000, ok:() => playerCollection.length + safeList.length >= 50},
+  {id:'god', t:'👑 Абсолютный Эксклюзив', r:100000, ok:() => playerCollection.concat(safeList).some(p => p.rarityClass === 'godlike')},
+  {id:'rich', t:'💵 100 миллионов на счету', r:200000, ok:() => balance >= 1e8},
+  {id:'bil', t:'🤑 Миллиард на счету', r:1000000, ok:() => balance >= 1e9},
+  {id:'car3', t:'🚗 3 машины в гараже', r:30000, ok:() => garage.length >= 3},
+  {id:'home', t:'🏠 Первая недвижимость', r:50000, ok:() => !!(FIN.houses && FIN.houses.length >= 1)},
+  {id:'fav5', t:'⭐ 5 избранных номеров', r:10000, ok:() => FAV.length >= 5},
+  {id:'safe5', t:'🔒 5 номеров в сейфе', r:10000, ok:() => safeList.length >= 5},
+  {id:'named', t:'🪪 Именной номер', r:200000, ok:() => playerCollection.concat(safeList).some(p => /Именной/.test(p.rarityText || ''))}
+);
+setInterval(() => { try{ checkAch(); }catch(e){} }, 15000);
+function openAch(){
+  if(!currentUser) return alert('Сначала войдите!');
+  const done = ACH.filter(a => achDone[a.id]).length;
+  box('ach-modal', '<h3>🏅 Достижения ' + done + '/' + ACH.length + '</h3>' + ACH.map(a =>
+    '<div class="list-item"><span>' + (achDone[a.id] ? '✅' : '⬜') + ' ' + a.t + '</span><b>+' + formatMoney(a.r) + '</b></div>').join(''));
+}
+const _omAch = openMore;
+openMore = function(){
+  _omAch();
+  const g = document.querySelector('#more-modal .mgrid');
+  if(!g) return;
+  const b = document.createElement('button');
+  b.innerHTML = '<span>🏅</span>Достижения';
+  b.onclick = () => goTab(openAch);
+  g.appendChild(b);
+};
+async function dailyStreak(){
+  if(!currentUser) return;
+  const ref = db.ref('users/' + ukey(currentUser) + '/streak');
+  const s = (await ref.once('value')).val() || {d: '', n: 0};
+  if(s.d === today()) return;
+  const y = new Date(Date.now() - 864e5).toISOString().slice(0, 10);
+  const n = s.d === y ? Math.min((s.n || 0) + 1, 7) : 1;
+  await ref.set({d: today(), n: n});
+  updateBalance(n * 1000);
+  toastQ('🔥 Серия входов: ' + n + ' дн.', '+' + formatMoney(n * 1000));
+}
+let streakFor = '';
+setInterval(() => {
+  if(currentUser && qLoaded && streakFor !== ukey(currentUser)){ streakFor = ukey(currentUser); setTimeout(dailyStreak, 3000); }
+}, 3000);
+// ===== Кнопки в меню «Ещё» + 🎡 Колесо удачи =====
+const MORE_BTNS = [];
+const _omM = openMore;
+openMore = function(){
+  _omM();
+  const g = document.querySelector('#more-modal .mgrid');
+  if(!g) return;
+  MORE_BTNS.forEach(x => {
+    const b = document.createElement('button');
+    b.innerHTML = '<span>' + x[0] + '</span>' + x[1];
+    b.onclick = () => goTab(x[2]);
+    g.appendChild(b);
+  });
+};
+const WHEEL = [[500, 30], [1000, 25], [2500, 20], [5000, 12], [10000, 8], [25000, 4], [50000, 1]];
+async function openWheel(){
+  if(!currentUser) return alert('Сначала войдите!');
+  const ref = db.ref('users/' + ukey(currentUser) + '/wheel');
+  const last = (await ref.once('value')).val() || 0;
+  const mins = Math.ceil((last + 6 * 36e5 - Date.now()) / 6e4);
+  box('wheel-modal', '<h3>🎡 Колесо удачи</h3><p style="color:#aaa">Крути раз в 6 часов и получай приз.</p><div id="wheel-res" style="font-size:2rem;text-align:center;margin:14px 0">🎡</div>' +
+    (mins > 0 ? '<p style="text-align:center">Следующая попытка через ' + Math.floor(mins / 60) + ' ч ' + (mins % 60) + ' мин</p>' : '<button class="btn-action" id="wheel-go">Крутить!</button>'));
+  const go = document.getElementById('wheel-go');
+  if(go) go.onclick = () => spinWheel(ref, go);
+}
+async function spinWheel(ref, btn){
+  btn.disabled = true;
+  const res = document.getElementById('wheel-res');
+  let t = 0;
+  const anim = setInterval(() => {
+    if(res) res.textContent = formatMoney(WHEEL[Math.floor(Math.random() * WHEEL.length)][0]);
+    if(++t > 14) clearInterval(anim);
+  }, 90);
+  const tr = await ref.transaction(v => (!v || v + 6 * 36e5 <= Date.now()) ? Date.now() : undefined);
+  await new Promise(r => setTimeout(r, 1500));
+  clearInterval(anim);
+  if(!tr.committed){ if(res) res.textContent = '⏳'; return; }
+  let r = Math.random() * WHEEL.reduce((a, x) => a + x[1], 0), prize = WHEEL[0][0];
+  for(const x of WHEEL){ if((r -= x[1]) < 0){ prize = x[0]; break; } }
+  updateBalance(prize);
+  if(res) res.textContent = '🎉 +' + formatMoney(prize);
+  toastQ('🎡 Колесо удачи', '+' + formatMoney(prize));
+  btn.style.display = 'none';
+}
+MORE_BTNS.push(['🎡', 'Колесо удачи', openWheel]);
+// ===== 🗓 Неделя заданий, таймер и бонус за все задания дня =====
+function openWeek(){
+  const t = qDay();
+  box('week-modal', '<h3>🗓 Задания недели</h3>' + [1, 2, 3, 4, 5, 6, 0].map(d =>
+    '<div class="list-item" style="display:block;' + (d === t ? 'border:1px solid #3b9eff;border-radius:10px;padding:6px;' : '') + '"><b>' + (d === t ? '👉 ' : '') + DAYN[d] + '</b><br>' +
+    WEEK[d].map(x => '<small style="color:#9aa">' + x.t + ' → +' + formatMoney(x.r) + '</small>').join('<br>') + '</div>').join(''));
+}
+MORE_BTNS.push(['🗓', 'Задания недели', openWeek]);
+const _oqT = openQuests;
+openQuests = function(){
+  _oqT();
+  const h = document.querySelector('#q-modal h3');
+  if(!h) return;
+  const mins = Math.max(0, Math.ceil((new Date(today() + 'T00:00:00Z').getTime() + 864e5 - Date.now()) / 6e4));
+  const p = document.createElement('div');
+  p.style.cssText = 'color:#8a93b5;font-size:0.85rem;margin:4px 0 8px';
+  p.textContent = '⏳ Новые задания через ' + Math.floor(mins / 60) + ' ч ' + (mins % 60) + ' мин. За все три сразу +5 000 ₽';
+  h.insertAdjacentElement('afterend', p);
+};
+const _qAddAll = qAdd;
+qAdd = function(k){
+  _qAddAll(k);
+  if(Q && Q.done && !Q.all && QUESTS.length && QUESTS.every(q => Q.done[q.id])){
+    Q.all = true;
+    updateBalance(5000);
+    toastQ('🌟 Все задания дня!', '+' + formatMoney(5000));
+  }
+};
+// ===== 🗺 Регионы, 🧾 История продаж, 🔊 Звук и вибрация =====
+function openRegions(){
+  const all = playerCollection.concat(safeList);
+  const rows = REGIONS_DATA.filter(r => !r.all).map(r => {
+    const n = all.filter(p => r.codes.indexOf(String(p.region)) >= 0).length;
+    return [n > 0, '<div class="list-item"><span>' + (n ? '✅' : '⬜') + ' ' + esc(r.name) + '</span><b>' + n + '</b></div>'];
+  });
+  box('reg-modal', '<h3>🗺 Мои регионы ' + rows.filter(x => x[0]).length + '/' + rows.length + '</h3>' + rows.map(x => x[1]).join(''));
+}
+MORE_BTNS.push(['🗺', 'Мои регионы', openRegions]);
+let SALES = [];
+try{ SALES = JSON.parse(localStorage.getItem('sales') || '[]'); }catch(e){}
+function logSale(txt, sum){
+  SALES.unshift({t: Date.now(), x: txt, s: sum});
+  SALES = SALES.slice(0, 30);
+  localStorage.setItem('sales', JSON.stringify(SALES));
+}
+const _ssH = sellSelectedPlate;
+sellSelectedPlate = function(i){
+  const p = playerCollection[i], n = playerCollection.length;
+  _ssH(i);
+  if(p && playerCollection.length < n) logSale(p.plate + ' ' + p.region, p.price || 0);
+};
+const _saH = sellAllCollection;
+sellAllCollection = function(){
+  const sum = () => playerCollection.reduce((a, p) => a + (p.price || 0), 0);
+  const n = playerCollection.length, s = sum();
+  _saH();
+  if(playerCollection.length < n) logSale('Продано сразу: ' + (n - playerCollection.length) + ' шт.', s - sum());
+};
+function openSales(){
+  const day = today();
+  const todaySum = SALES.filter(s => new Date(s.t).toISOString().slice(0, 10) === day).reduce((a, s) => a + s.s, 0);
+  box('sales-modal', '<h3>🧾 История продаж</h3><p style="color:#8a93b5">Сегодня продано на ' + formatMoney(todaySum) + '</p>' +
+    (SALES.length ? SALES.map(s => '<div class="list-item"><span>' + esc(s.x) + '</span><b>+' + formatMoney(s.s) + '</b></div>').join('') : '<p>Пока пусто</p>'));
+}
+MORE_BTNS.push(['🧾', 'История продаж', openSales]);
+const _psM = playSound;
+playSound = function(f, d){ if(localStorage.getItem('mute') === '1') return; return _psM(f, d); };
+try{
+  const _vib = navigator.vibrate.bind(navigator);
+  navigator.vibrate = p => localStorage.getItem('novib') === '1' ? false : _vib(p);
+}catch(e){}
+const flip = (key, name) => {
+  const off = localStorage.getItem(key) === '1';
+  localStorage.setItem(key, off ? '0' : '1');
+  toastQ(name, off ? 'Включено' : 'Выключено');
+};
+MORE_BTNS.push(['🔊', 'Звук вкл/выкл', () => flip('mute', '🔊 Звук')]);
+MORE_BTNS.push(['📳', 'Вибро вкл/выкл', () => flip('novib', '📳 Вибрация')]);
+// ===== Админка: экономика, сброс достижений, сброс колеса и серии =====
+async function axEconomy(){
+  const a = Object.values((await db.ref('stats').once('value')).val() || {});
+  if(!a.length) return alert('Нет данных статистики');
+  const sum = a.reduce((s, x) => s + (x.bal || 0), 0);
+  const top = a.slice().sort((x, y) => (y.bal || 0) - (x.bal || 0)).slice(0, 5);
+  alert('💹 Экономика\nИгроков: ' + a.length + '\nВсего денег: ' + formatMoney(sum) + '\nВ среднем: ' + formatMoney(Math.floor(sum / a.length)) +
+    '\nТоп-5:\n' + top.map((x, i) => (i + 1) + '. ' + (x.name || '?') + ': ' + formatMoney(x.bal || 0)).join('\n'));
+}
+async function axResetAch(){
+  const n = axNick(); if(!n) return;
+  if(!confirm('Сбросить достижения у ' + n + '?')) return;
+  await db.ref('users/' + ukey(n) + '/ach').remove();
+  alert('Достижения сброшены');
+}
+async function axResetDaily(){
+  const n = axNick(); if(!n) return;
+  await db.ref('users/' + ukey(n)).update({wheel: null, streak: null});
+  alert('Колесо и серия входов сброшены у ' + n);
+}
+const _oaEco = openAdmin;
+openAdmin = function(){
+  _oaEco();
+  if(!currentUser || currentUser.toLowerCase() !== 'deadk1ra') return;
+  const g = document.querySelector('#ax-more .mgrid, #adm-extra .mgrid');
+  if(!g || document.getElementById('ax-eco')) return;
+  [['ax-eco','💹','Экономика',axEconomy], ['ax-rach','🏅','Сброс достижений',axResetAch], ['ax-rdaily','🎡','Сброс колеса и серии',axResetDaily]].forEach(x => {
+    const b = document.createElement('button');
+    b.id = x[0]; b.innerHTML = '<span>' + x[1] + '</span>' + x[2]; b.onclick = x[3];
+    g.appendChild(b);
+  });
+};
+// ===== ₿ Крипто-биржа (игровая, цены выдуманные) =====
+const CX = [
+  {n:'₿ Биткоин', s:'BTC', b:6000000, a:0.5},
+  {n:'Ξ Эфириум', s:'ETH', b:120000, a:0.6},
+  {n:'◎ Солана', s:'SOL', b:300000, a:0.7},
+  {n:'Ł Лайткоин', s:'LTC', b:150000, a:0.55},
+  {n:'🐕 Догикоин', s:'DOGE', b:15000, a:0.9}
+];
+let CXH = {s: [0, 0, 0, 0, 0], c: [0, 0, 0, 0, 0]}, cxSel = 0, cxFor = '', cxBusy = false, cxQty = '';
+const cxK = () => Math.floor(Date.now() / 6e5);
+const cxRand = (i, k) => { const x = Math.sin((i + 7) * 21.17 + k * 37.719) * 24634.6345; return x - Math.floor(x); };
+function cxPrice(i, k){
+  const a = Math.floor(k / 6), f = (k % 6) / 6, s0 = cxRand(i, a), s = s0 + (cxRand(i, a + 1) - s0) * f;
+  return Math.max(1, Math.round(CX[i].b * (1 + CX[i].a * (2 * s - 1))));
+}
+function cxSpark(i){
+  const k = cxK(), v = [];
+  for(let j = 11; j >= 0; j--) v.push(cxPrice(i, k - j * 3));
+  const lo = Math.min(...v), hi = Math.max(...v);
+  return v.map(x => '▁▂▃▄▅▆▇█'[Math.min(7, Math.floor((x - lo) / (hi - lo + 1) * 8))]).join('');
+}
+const cxMoney = n => (n < 0 ? '−' : '+') + formatMoney(Math.abs(n));
+async function cxLoad(){
+  const s = (await db.ref('users/' + ukey(currentUser) + '/cx').once('value')).val() || {};
+  const fix = a => CX.map((_, i) => Math.max(0, +(a && a[i]) || 0));
+  CXH = {s: fix(s.s), c: fix(s.c)};
+  cxFor = ukey(currentUser);
+}
+async function openCrypto(){
+  if(!currentUser) return alert('Сначала войдите!');
+  if(cxFor !== ukey(currentUser)) await cxLoad();
+  cxRender();
+}
+function cxPick(i){ cxSel = i; cxQty = ''; cxRender(); }
+function cxFill(buy){
+  const i = cxSel, p = cxPrice(i, cxK());
+  cxQty = String(buy ? Math.floor(balance / p * 1e4) / 1e4 : CXH.s[i]);
+  cxRender();
+}
+function cxRender(){
+  const k = cxK(), i = cxSel;
+  const rows = CX.map((c, j) => {
+    const p = cxPrice(j, k), q = cxPrice(j, k - 1);
+    return '<div class="list-item" onclick="cxPick(' + j + ')" style="' + (j === i ? 'border:1px solid #3b9eff;border-radius:10px;padding:4px;' : '') + '"><span>' + c.n +
+      '<br><small style="color:#8a93b5">' + cxSpark(j) + ' · у тебя ' + CXH.s[j] + '</small></span><b style="text-align:right;color:' + (p >= q ? '#2ecc71' : '#e74c3c') + '">' +
+      formatMoney(p) + '<br><small>' + (p >= q ? '▲' : '▼') + ' ' + Math.abs((p - q) / q * 100).toFixed(1) + '%</small></b></div>';
+  }).join('');
+  const val = Math.floor(CXH.s[i] * cxPrice(i, k));
+  box('cx-modal', '<h3>₿ Крипто-биржа</h3><p style="color:#8a93b5;font-size:0.85rem">Это игра: монеты и цены выдуманные. Цена меняется каждые 10 минут, комиссия при продаже 2%. Можно заработать, а можно потерять.</p>' + rows +
+    '<div style="margin:10px 0"><b>' + CX[i].s + '</b>: ' + CXH.s[i] + ' шт. на ' + formatMoney(val) + ' (' + cxMoney(val - CXH.c[i]) + ')</div>' +
+    '<input id="cx-q" inputmode="decimal" placeholder="Сколько монет? Например 0.5" value="' + esc(cxQty) + '" oninput="cxQty=this.value" style="width:100%;padding:10px;border-radius:12px;border:1px solid #333652;background:#0d0f18;color:#fff;box-sizing:border-box;margin-bottom:8px">' +
+    '<div class="mgrid"><button onclick="cxTrade(true)">Купить</button><button onclick="cxTrade(false)">Продать</button><button onclick="cxFill(true)">Макс. купить</button><button onclick="cxFill(false)">Продать всё</button></div>');
+}
+async function cxTrade(buy){
+  if(cxBusy) return;
+  const i = cxSel, inp = document.getElementById('cx-q');
+  const q = Math.floor((parseFloat(String(inp ? inp.value : cxQty).replace(',', '.')) || 0) * 1e4 + 1e-6) / 1e4;
+  if(!(q > 0)) return alert('Впиши, сколько монет');
+  cxBusy = true;
+  try{
+    if(cxFor !== ukey(currentUser)) await cxLoad();
+    const p = cxPrice(i, cxK());
+    if(buy){
+      const cost = Math.ceil(p * q);
+      if(balance < cost) return alert('Недостаточно денег! Нужно ' + formatMoney(cost));
+      updateBalance(-cost);
+      CXH.s[i] = +(CXH.s[i] + q).toFixed(4); CXH.c[i] += cost;
+      toastQ('₿ Куплено: ' + CX[i].s, +q.toFixed(4) + ' шт. за ' + formatMoney(cost));
+    }else{
+      const n = Math.min(q, CXH.s[i]);
+      if(!(n > 0)) return alert('У тебя нет этой монеты');
+      const gain = Math.floor(p * n * 0.98), part = n >= CXH.s[i] ? CXH.c[i] : Math.round(CXH.c[i] * n / CXH.s[i]);
+      updateBalance(gain);
+      CXH.s[i] = Math.max(0, +(CXH.s[i] - n).toFixed(4)); CXH.c[i] -= part;
+      toastQ('₿ Продано: ' + CX[i].s, cxMoney(gain - part) + ' к вложенному');
+    }
+    cxQty = '';
+    await db.ref('users/' + ukey(currentUser) + '/cx').set(CXH);
+    cxRender();
+  }finally{ cxBusy = false; }
+}
+const _luCx = loginUser;
+loginUser = function(u){ cxFor = ''; _luCx(u); };
+MORE_BTNS.push(['₿', 'Крипта', openCrypto]);
+// ===== КАЗИНО (виртуальная валюта) =====
+let CS_BET=1000, CS_BUSY=false, CS_REEL='🎰 🎰 🎰', CS_MSG='Сделай ставку';
+const CS_SYM=['🍒','🍋','🔔','⭐','💎','7️⃣'];
+function openCasino(){
+ let h='<h3>🎰 Казино</h3>';
+ h+='<p style="text-align:center;font-size:.9rem">Баланс: <b>'+formatMoney(balance)+'</b></p>';
+ h+='<p style="text-align:center;font-size:2.2rem;margin:8px 0">'+CS_REEL+'</p>';
+ h+='<p style="text-align:center;font-weight:bold;min-height:22px">'+CS_MSG+'</p>';
+ h+='<p style="text-align:center;font-size:.85rem;margin:6px 0">Ставка: <b>'+formatMoney(CS_BET)+'</b></p>';
+ h+='<button onclick="csCustom()" style="margin-top:8px">✏️ Своя ставка (от 100к)</button>';
+ h+='<button onclick="csPlay(\'slot\')" style="margin-top:10px">🎰 Слоты (3 одинаковых x10, пара x1.5)</button>';
+ h+='<div style="display:flex;gap:6px"><button onclick="csPlay(\'o\')" style="margin:4px 0">🪙 Орёл x1.9</button><button onclick="csPlay(\'r\')" style="margin:4px 0">🪙 Решка x1.9</button></div>';
+ h+='<p style="font-size:.72rem;color:#888;text-align:center;margin:12px 0 4px">⚠️ Мы не поддерживаем азартные игры и казино. Это игровое развлечение с виртуальной валютой, без вывода денег. Играйте ответственно.</p>';
+ box('casino-modal',h);
+}
+function csCustom(){
+ const s=prompt('Введи свою ставку');
+ if(s===null) return;
+ const v=Math.floor(Number(s));
+ if(!(v>=100000)){ CS_MSG='Введи ставку от 100000'; return openCasino(); }
+ if(v>balance){ CS_MSG='Ставка больше баланса'; return openCasino(); }
+ CS_BET=v; CS_MSG='Ставка: '+formatMoney(v); openCasino();
+}
+function csBet(b){ CS_BET=b; openCasino(); }
+function csPlay(t){
+ if(CS_BUSY) return;
+ if(balance<CS_BET){ CS_MSG='Недостаточно средств'; return openCasino(); }
+ CS_BUSY=true; updateBalance(-CS_BET);
+ CS_REEL='⏳ ⏳ ⏳'; CS_MSG='Крутим...'; openCasino();
+ setTimeout(function(){
+  let win=0;
+  if(t==='slot'){
+   const r=[0,0,0].map(function(){ return CS_SYM[Math.floor(Math.random()*CS_SYM.length)]; });
+   CS_REEL=r.join(' ');
+   if(r[0]===r[1]&&r[1]===r[2]) win=CS_BET*10;
+   else if((r[0]===r[1]?1:0)+(r[1]===r[2]?1:0)+(r[0]===r[2]?1:0)>0) win=Math.floor(CS_BET*1.5);
+  } else {
+   const side=Math.random()<0.5?'o':'r';
+   CS_REEL=side==='o'?'🪙 Орёл':'🪙 Решка';
+   if(side===t) win=Math.floor(CS_BET*1.9);
+  }
+  if(win>0){ updateBalance(win); CS_MSG='✅ Выигрыш: '+formatMoney(win); }
+  else CS_MSG='❌ Проигрыш: '+formatMoney(CS_BET);
+  CS_BUSY=false; openCasino();
+ },700);
+}
+MORE_BTNS.push(['🎰','Казино',openCasino]);
 </script>
