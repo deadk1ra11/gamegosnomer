@@ -6282,31 +6282,6 @@ async function bossClaim(){
   toastQ('🏆 Награда за босса', '+' + formatMoney(pay));
 }
 // ===== Мировой босс: окно и кнопки (часть 14) =====
-function bossPaint(){
-  const b = BOSS;
-  if(!b) return;
-  const t = document.getElementById('bs-txt'), f = document.getElementById('bs-bar');
-  if(t) t.textContent = Math.max(0, b.hp) + ' / ' + b.max + ' HP';
-  if(f) f.style.width = Math.max(0, b.hp / b.max * 100) + '%';
-}
-async function openBoss(){
-  if(!BOSS){
-    if(BS_TRY++ < 3){ await bossNext(); return setTimeout(openBoss, 700); }
-    return toastQ('👹 Босс', 'Не удалось загрузить босса. Проверь правила Firebase для casino');
-  }
-  if(BOSS.hp <= 0) bossNext();
-  const e = chNow(), p = BOSS.prev;
-  let h = '<h3>👹 Мировой босс</h3>';
-  h += `<p style="text-align:center;font-size:1.3rem;margin:6px 0">${esc(BOSS.name)}</p>`;
-  h += '<div style="background:#333;border-radius:8px;height:18px;overflow:hidden"><div id="bs-bar" style="height:100%;background:#e74c3c;width:100%"></div></div>';
-  h += '<p id="bs-txt" style="text-align:center;margin:4px 0"></p>';
-  h += `<p style="text-align:center;font-size:.8rem;color:#8a93b5">Награда на всех: ${formatMoney(BOSS.pool)} по доле урона, добивший +20%</p>`;
-  h += `<p style="text-align:center;font-size:.8rem">🌪 ${esc(e.n)}: ${esc(e.d)}</p>`;
-  h += `<button onclick="bossHit()" style="background:#e74c3c">⚔️ Ударить (${formatMoney(Math.floor(BS_HIT * (e.cost || 1)))})</button>`;
-  if(p) h += `<button onclick="bossClaim()" style="margin-top:6px;background:#2ea44f">🏆 Награда за босса: ${esc(p.name)}</button>`;
-  box('boss-modal', h);
-  bossPaint();
-}
 function shareGame(){
   const url = location.origin + location.pathname;
   const text = 'Играю в симулятор госномеров: казино, рынок, мировой босс. Заходи, мой ник ' + currentUser + '!';
@@ -6316,5 +6291,258 @@ function shareGame(){
     catch(e){ prompt('Скопируй ссылку:', url); }
   }
 }
-[['👹', 'Мировой босс', openBoss], ['📤', 'Позвать друзей', shareGame]].forEach(b => MORE_BTNS.push(b));
+[['📤', 'Позвать друзей', shareGame]].forEach(b => MORE_BTNS.push(b));
+// ===== Общие функции казино + Блэкджек (часть 15) =====
+CS_NAMES.bj = '🃏'; CS_NAMES.crash = '🚀';
+function csTopUpdate(win, bet){
+  if(win <= bet || !currentUser) return;
+  try{
+    db.ref('casino/best/' + ukey(currentUser)).transaction(v =>
+      (!v || win > v.win) ? {n: currentUser, win: win, t: Date.now()} : undefined);
+  }catch(e){}
+}
+const _cfT = csFinish;
+csFinish = function(bet, win, own){ csTopUpdate(win, bet); return _cfT(bet, win, own); };
+function csLog(t, bet, win){
+  const s = csStats();
+  s.n++; s.wag += bet; s.won += win; s.w += win > bet ? 1 : 0; s.best = Math.max(s.best, win);
+  csSet('csst', s);
+  const h = csGet('cshist', []); h.unshift({t: t, b: bet, w: win}); csSet('cshist', h.slice(0, 10));
+  csTopUpdate(win, bet);
+}
+const BJ_R = ['2','3','4','5','6','7','8','9','10','J','Q','K','A'];
+let BJ = null;
+const bjVal = h => {
+  let t = 0, a = 0;
+  h.forEach(c => { t += c.v; if(c.r === 'A') a++; });
+  while(t > 21 && a-- > 0) t -= 10;
+  return t;
+};
+function bjDraw(hand, forPlayer){
+  const mk = () => { const i = Math.floor(Math.random() * 13); return {r: BJ_R[i], v: i < 9 ? i + 2 : i < 12 ? 10 : 11}; };
+  let c = mk();
+  const L = BJ.L;
+  if(L !== 0 && Math.random() < Math.abs(L) / 100){
+    const best = forPlayer ? L > 0 : L < 0;
+    const score = x => { const t = bjVal(hand.concat([x])); return t > 21 ? -t : t; };
+    for(let i = 0; i < 3; i++){
+      const n = mk();
+      if(best ? score(n) > score(c) : score(n) < score(c)) c = n;
+    }
+  }
+  hand.push(c);
+}
+function bjShow(){
+  const b = BJ, hid = !b.over;
+  const hand = (h, hide) => h.map((c, i) => hide && i === 1 ? '🂠' : c.r).join(' ');
+  let h = '<h3>🃏 Блэкджек</h3>';
+  h += `<p style="text-align:center;font-size:.8rem;color:#8a93b5">Ставка: ${formatMoney(b.bet)} · победа x2, блэкджек x2.5</p>`;
+  h += `<p style="text-align:center">Дилер: <b style="font-size:1.4rem">${hand(b.d, hid)}</b>${hid ? '' : ' (' + bjVal(b.d) + ')'}</p>`;
+  h += `<p style="text-align:center">Ты: <b style="font-size:1.4rem">${hand(b.p, false)}</b> (${bjVal(b.p)})</p>`;
+  h += `<p style="text-align:center;font-weight:bold;min-height:22px">${b.msg || ''}</p>`;
+  if(!b.over){
+    h += '<div style="display:flex;gap:6px"><button onclick="bjHit()" style="flex:1">➕ Взять</button>' +
+      '<button onclick="bjStand()" style="flex:1">✋ Хватит</button>' +
+      (b.p.length === 2 && balance >= b.bet ? '<button onclick="bjDouble()" style="flex:1">✖2</button>' : '') + '</div>';
+  } else h += '<button onclick="bjDeal()">🔁 Раздать ещё (' + formatMoney(CS_BET) + ')</button>';
+  box('bj-modal', h);
+}
+function openBJ(){
+  if(BJ) return bjShow();
+  box('bj-modal', '<h3>🃏 Блэкджек</h3><p style="text-align:center;font-size:.85rem;color:#8a93b5">Набери 21 или ближе дилера. Ставка как в казино: ' +
+    formatMoney(CS_BET) + '</p><button onclick="bjDeal()">Раздать</button>');
+}
+function bjEnd(win, msg){
+  BJ.over = true; BJ.msg = msg;
+  if(win > 0) updateBalance(win);
+  csLog('bj', BJ.bet, win);
+  bjShow();
+}
+async function bjDeal(){
+  if(CS_BUSY || (BJ && !BJ.over)) return;
+  const bet = CS_BET;
+  if(balance < bet) return toastQ('🃏 Блэкджек', 'Недостаточно средств');
+  if(CS_MAX > 0 && bet > CS_MAX) return toastQ('🃏 Блэкджек', 'Макс. ставка: ' + formatMoney(CS_MAX));
+  updateBalance(-bet);
+  BJ = {bet: bet, p: [], d: [], over: false, L: 0, msg: ''};
+  BJ.L = await csLoadLuck();
+  bjDraw(BJ.p, true); bjDraw(BJ.d, false); bjDraw(BJ.p, true); bjDraw(BJ.d, false);
+  if(bjVal(BJ.p) === 21) return bjVal(BJ.d) === 21 ? bjEnd(bet, '↩️ Ничья, у обоих 21') : bjEnd(Math.floor(bet * 2.5), '🔥 БЛЭКДЖЕК!');
+  bjShow();
+}
+function bjHit(){
+  if(!BJ || BJ.over) return;
+  bjDraw(BJ.p, true);
+  const t = bjVal(BJ.p);
+  if(t > 21) bjEnd(0, '💥 Перебор, ты проиграл');
+  else if(t === 21) bjStand();
+  else bjShow();
+}
+function bjDouble(){
+  if(!BJ || BJ.over || BJ.p.length !== 2 || balance < BJ.bet) return;
+  updateBalance(-BJ.bet); BJ.bet *= 2;
+  bjDraw(BJ.p, true);
+  if(bjVal(BJ.p) > 21) bjEnd(0, '💥 Перебор, ты проиграл'); else bjStand();
+}
+function bjStand(){
+  if(!BJ || BJ.over) return;
+  while(bjVal(BJ.d) < 17) bjDraw(BJ.d, false);
+  const p = bjVal(BJ.p), d = bjVal(BJ.d), b = BJ.bet;
+  if(d > 21 || p > d) bjEnd(b * 2, '✅ Победа! +' + formatMoney(b));
+  else if(p === d) bjEnd(b, '↩️ Ничья');
+  else bjEnd(0, '❌ Дилер выиграл');
+}
+// ===== Ракета (Crash) и топ казино (часть 16) =====
+let CR = null;
+const crMul = () => Math.exp(0.1 * (Date.now() - CR.t0) / 1000);
+function crShow(){
+  let h = '<h3>🚀 Ракета</h3>';
+  h += '<p style="text-align:center;font-size:.8rem;color:#8a93b5">Множитель растёт. Успей забрать до взрыва! Ставка: ' + formatMoney(CR && CR.run ? CR.bet : CS_BET) + '</p>';
+  h += `<p id="cr-m" style="text-align:center;font-size:2.6rem;margin:10px 0">x${CR ? (CR.run ? CR.m : (CR.win ? CR.m : CR.pt)).toFixed(2) : '1.00'}</p>`;
+  h += `<p id="cr-w" style="text-align:center;margin:0">${CR && CR.run ? formatMoney(Math.floor(CR.bet * CR.m)) : ''}</p>`;
+  h += `<p style="text-align:center;font-weight:bold;min-height:22px">${CR && !CR.run ? CR.res : ''}</p>`;
+  h += CR && CR.run ? '<button onclick="crCash()" style="background:#2ea44f">💰 Забрать</button>'
+    : '<button onclick="crStart()">🚀 Взлёт (' + formatMoney(CS_BET) + ')</button>';
+  box('cr-modal', h);
+}
+const openCrash = crShow;
+async function crStart(){
+  if(CS_BUSY || (CR && CR.run)) return;
+  const bet = CS_BET;
+  if(balance < bet) return toastQ('🚀 Ракета', 'Недостаточно средств');
+  if(CS_MAX > 0 && bet > CS_MAX) return toastQ('🚀 Ракета', 'Макс. ставка: ' + formatMoney(CS_MAX));
+  updateBalance(-bet);
+  const L = await csLoadLuck();
+  const pt = csRig(() => Math.min(100, Math.max(1, 0.97 / (1 - Math.random()))), x => x >= 2, L);
+  CR = {bet: bet, pt: pt, m: 1, run: true, win: false, t0: Date.now()};
+  CR.iv = setInterval(crTick, 80);
+  crShow();
+}
+function crTick(){
+  if(!CR || !CR.run) return;
+  if(!isOpen('cr-modal')) return crCash();
+  const m = crMul();
+  if(m >= CR.pt) return crEnd(false);
+  CR.m = m;
+  const e = document.getElementById('cr-m'), w = document.getElementById('cr-w');
+  if(e) e.textContent = 'x' + m.toFixed(2);
+  if(w) w.textContent = formatMoney(Math.floor(CR.bet * m));
+}
+function crCash(){
+  if(!CR || !CR.run) return;
+  const m = crMul();
+  if(m >= CR.pt) return crEnd(false);
+  CR.m = m; crEnd(true);
+}
+function crEnd(win){
+  clearInterval(CR.iv); CR.run = false; CR.win = win;
+  const pay = win ? Math.floor(CR.bet * CR.m) : 0;
+  if(pay > 0) updateBalance(pay);
+  CR.res = win ? '✅ Забрал на x' + CR.m.toFixed(2) + ': +' + formatMoney(pay - CR.bet) : '💥 Ракета взорвалась на x' + CR.pt.toFixed(2);
+  csLog('crash', CR.bet, pay);
+  crShow();
+}
+async function openCsTop(){
+  const snap = await db.ref('casino/best').orderByChild('win').limitToLast(10).once('value');
+  const a = [];
+  snap.forEach(c => { const v = c.val(); if(v && v.win) a.push(v); });
+  a.sort((x, y) => y.win - x.win);
+  box('cstop-modal', '<h3>🏆 Топ выигрышей казино</h3>' + (a.map((v, i) =>
+    `<div style="display:flex;justify-content:space-between;padding:7px 4px;border-bottom:1px solid #333">` +
+    `<span>${['🥇', '🥈', '🥉'][i] || (i + 1) + '.'} ${esc(v.n)}</span><span>${formatMoney(v.win)}</span></div>`).join('') ||
+    '<p style="color:#aaa;text-align:center">Пока никого</p>'));
+}
+// ===== Охотник, копилка, раздача всем, кнопки (часть 17) =====
+const htKey = () => 'hunt_' + ukey(currentUser || '');
+const htGet = () => { try{ return JSON.parse(localStorage.getItem(htKey())) || {max: 0, q: ''}; }catch(e){ return {max: 0, q: ''}; } };
+let HT_READY = false;
+setTimeout(() => { HT_READY = true; }, 6000);
+try{
+  db.ref('market').on('child_added', s => {
+    if(!HT_READY || !currentUser) return;
+    const m = s.val(), r = htGet();
+    if(!m || !m.item || ukey(m.seller) === ukey(currentUser) || (!r.max && !r.q)) return;
+    const ask = m.ask || m.item.price || 0, name = (String(m.item.plate) + ' ' + m.item.region).toLowerCase();
+    if((r.max && ask > r.max) || (r.q && !name.includes(r.q))) return;
+    toastQ('🎯 Охотник нашёл лот', m.item.plate + ' ' + m.item.region + ' за ' + formatMoney(ask));
+  });
+}catch(e){}
+function openHunter(){
+  const r = htGet();
+  box('hunt-modal', '<h3>🎯 Охотник за номерами</h3><p style="font-size:.85rem">Пришлю уведомление, когда на рынке появится подходящий лот (пока игра открыта).<br>' +
+    'Макс. цена: <b>' + (r.max ? formatMoney(r.max) : 'любая') + '</b><br>Содержит: <b>' + (r.q ? esc(r.q) : 'любой') + '</b></p>' +
+    '<button onclick="htSet()">⚙️ Настроить</button><button onclick="htOff()" style="background:#555;margin-top:6px">Выключить</button>');
+}
+function htSet(){
+  const r = htGet();
+  const a = prompt('Максимальная цена (0 = любая):', String(r.max || 0)); if(a === null) return;
+  const q = prompt('Номер или регион содержит (пусто = любой), например 777:', r.q || ''); if(q === null) return;
+  localStorage.setItem(htKey(), JSON.stringify({max: Math.max(0, Math.floor(Number(String(a).replace(/\s/g, '')) || 0)), q: q.trim().toLowerCase()}));
+  openHunter();
+}
+function htOff(){ localStorage.removeItem(htKey()); openHunter(); }
+const PG_RATE = 0.002, PG_MAXH = 72, PG_CAP = 5e6;
+let PG_USER = '';
+const pgRef = () => db.ref('users/' + ukey(currentUser) + '/piggy');
+const pgCalc = p => {
+  if(!p || !p.amt) return {amt: 0, gain: 0};
+  return {amt: p.amt, gain: Math.floor(p.amt * PG_RATE * Math.min(PG_MAXH, (Date.now() - p.ts) / 3600e3))};
+};
+async function openPiggy(){
+  if(PG_USER !== ukey(currentUser)){ PG_USER = ukey(currentUser); pgRef().on('value', () => {}); }
+  const c = pgCalc((await pgRef().once('value')).val());
+  box('pig-modal', '<h3>🐷 Копилка</h3><p style="font-size:.85rem;color:#8a93b5">+0.2% в час, копится до 72 часов, лимит вклада ' + formatMoney(PG_CAP) + '.</p>' +
+    '<p>Внутри: <b>' + formatMoney(c.amt) + '</b><br>Проценты: <b>' + formatMoney(c.gain) + '</b></p>' +
+    '<button onclick="pgPut()">➕ Положить</button><button onclick="pgTake()" style="margin-top:6px">💰 Забрать всё</button>');
+}
+async function pgPut(){
+  const v = prompt('Сколько положить (₽)?', '100000'); if(v === null) return;
+  const x = Math.floor(Number(String(v).replace(/\s/g, '')));
+  if(!(x > 0) || x > balance) return toastQ('🐷 Копилка', 'Неверная сумма или не хватает денег');
+  let ok = false;
+  await pgRef().transaction(p => {
+    ok = false; const c = pgCalc(p);
+    if(c.amt + c.gain + x > PG_CAP) return;
+    ok = true;
+    return {amt: c.amt + c.gain + x, ts: Date.now()};
+  });
+  if(!ok) return toastQ('🐷 Копилка', 'Лимит вклада ' + formatMoney(PG_CAP));
+  updateBalance(-x); openPiggy();
+}
+async function pgTake(){
+  let tot = 0;
+  const r = await pgRef().transaction(p => { tot = 0; if(!p || !p.amt) return; const c = pgCalc(p); tot = c.amt + c.gain; return null; });
+  if(!r.committed || !tot) return toastQ('🐷 Копилка', 'Копилка пуста');
+  updateBalance(tot); toastQ('🐷 Копилка', '+' + formatMoney(tot)); openPiggy();
+}
+let GIFT = null;
+function giftCheck(){
+  const g = GIFT;
+  if(!g || !g.id || !currentUser || Date.now() - g.id > 48 * 3600e3) return;
+  db.ref('event/giftclaim/' + g.id + '/' + ukey(currentUser)).transaction(c => c ? undefined : true).then(r => {
+    if(r.committed){ updateBalance(g.amt); toastQ('🎁 ' + (g.text || 'Подарок'), '+' + formatMoney(g.amt)); }
+  });
+}
+try{ db.ref('event/gift').on('value', s => { GIFT = s.val(); giftCheck(); }); }catch(e){}
+setInterval(giftCheck, 15000);
+async function axGiftAll(){
+  const v = prompt('Сколько ₽ подарить КАЖДОМУ игроку (получат при заходе, 48 часов):', '100000');
+  if(v === null) return;
+  const x = Math.floor(Number(String(v).replace(/\s/g, '')));
+  if(!(x > 0)) return alert('Нужна сумма больше 0');
+  await db.ref('event/gift').set({id: Date.now(), amt: x, text: 'Подарок от создателя!'});
+  alert('Раздача запущена: ' + formatMoney(x) + ' каждому');
+}
+const _oaGf = openAdmin;
+openAdmin = function(){
+  _oaGf();
+  if(!currentUser || currentUser.toLowerCase() !== 'deadk1ra') return;
+  const g = document.querySelector('#ax-more .mgrid, #adm-extra .mgrid');
+  if(!g || document.getElementById('ax-gift')) return;
+  const b = document.createElement('button');
+  b.id = 'ax-gift'; b.innerHTML = '<span>🎁</span>Раздача всем'; b.onclick = axGiftAll;
+  g.appendChild(b);
+};
+[['🃏', 'Блэкджек', openBJ], ['🚀', 'Ракета', openCrash], ['🏆', 'Топ казино', openCsTop],
+ ['🎯', 'Охотник', openHunter], ['🐷', 'Копилка', openPiggy]].forEach(b => MORE_BTNS.push(b));
 </script>
