@@ -1593,7 +1593,7 @@ if(!it) return;
 const v = prompt('Цена продажи (₽):', it.price);
 if(v === null) return;
 const ask = Math.floor(Number(String(v).replace(/\s/g,'')));
-if(!(ask >= 1 && ask <= 1e9)) return alert('Введите цену от 1 до 1 000 000 000 ₽');
+if(!(ask >= 1 && ask <= infinity)) return alert('Введите цену от 1 до 1 000 000 000 ₽');
 db.ref('market').push({seller:currentUser, item:it, ask:ask}).then(()=>{
 playerCollection.splice(i,1);
 saveCollection();
@@ -4681,7 +4681,7 @@ generatePlateData = function(){
   if(godModeActive || DROP === 'named') return d;
   if(!/Именной/.test(d.rarityText || '')) return d;
   if(Math.random() < NAMED_CHANCE / NAMED_OLD){
-    d.price = Math.floor(200e6 + Math.random() * 300e6);
+    d.price = Math.floor(1e9 + Math.random() * 5e9);
     return d;
   }
   let tries = 0;
@@ -5992,4 +5992,329 @@ openAdmin = function(){
     g.appendChild(b);
   });
 };
+// ===== Комиссия рынка 5% + объявления (часть 8) =====
+let MK_FEE = 5;
+try{
+  db.ref('event/marketFee').on('value', s => {
+    const v = s.val();
+    MK_FEE = v === null ? 5 : Math.max(0, Math.min(50, Number(v) || 0));
+  });
+}catch(e){}
+const mkNet = ask => Math.floor(ask * (100 - MK_FEE) / 100);
+buyFromMarket = function(key){
+  db.ref('market/' + key).once('value').then(snap => {
+    const m = snap.val();
+    if(!m || m.buyer){ alert('Этот номер уже купили!'); return openMarketModal(); }
+    const ask = m.ask || m.item.price;
+    if(ukey(m.seller) === ukey(currentUser)) return alert('Нельзя купить свой номер!');
+    if(balance < ask) return alert('Недостаточно средств!');
+    db.ref('market/' + key + '/buyer').transaction(c => c ? undefined : currentUser).then(res => {
+      if(!res.committed){ alert('Этот номер уже купили!'); return openMarketModal(); }
+      const net = mkNet(ask);
+      updateBalance(-ask);
+      db.ref('users/' + ukey(m.seller) + '/balance').transaction(b => (b || 0) + net);
+      playerCollection.push(m.item);
+      saveCollection();
+      logDeal('Рынок', m.seller, currentUser, m.item, ask);
+      S.spent += ask; addXp(25);
+      db.ref('market/' + key).remove();
+      alert('Вы успешно приобрели номер!');
+      openMarketModal();
+    });
+  });
+};
+const _pmFee = putOnMarket;
+putOnMarket = function(i){
+  const _p = window.prompt;
+  window.prompt = function(msg, def){
+    window.prompt = _p;
+    const v = _p(msg + '\nКомиссия рынка ' + MK_FEE + '%: вы получите ' + (100 - MK_FEE) + '% от цены.', def);
+    if(v === null) return null;
+    const ask = Math.floor(Number(String(v).replace(/\s/g, '')));
+    if(ask >= 1 && !confirm('Цена: ' + formatMoney(ask) + '\nКомиссия: ' + formatMoney(ask - mkNet(ask)) +
+      '\nВы получите: ' + formatMoney(mkNet(ask)) + '\nВыставить?')) return null;
+    return v;
+  };
+  try{ _pmFee(i); } finally { window.prompt = _p; }
+};
+let BC_SEEN = Number(localStorage.getItem('bc_seen') || 0);
+try{
+  db.ref('event/broadcast').on('value', s => {
+    const v = s.val();
+    if(!v || !v.ts || v.ts <= BC_SEEN) return;
+    BC_SEEN = v.ts; localStorage.setItem('bc_seen', String(v.ts));
+    if(Date.now() - v.ts < 6 * 3600e3) toastQ('📢 Объявление', v.text);
+  });
+}catch(e){}
+async function axMarketFee(){
+  const v = prompt('Комиссия рынка, % (сейчас ' + MK_FEE + '). От 0 до 50:', String(MK_FEE));
+  if(v === null) return;
+  const x = Math.max(0, Math.min(50, Number(String(v).replace(',', '.')) || 0));
+  await db.ref('event/marketFee').set(x);
+  alert('Комиссия рынка: ' + x + '%');
+}
+async function axBroadcast(){
+  const t = prompt('Текст объявления для всех игроков:');
+  if(!t || !t.trim()) return;
+  await db.ref('event/broadcast').set({text: t.trim().slice(0, 200), ts: Date.now()});
+  alert('Объявление отправлено');
+}
+const _oaMk = openAdmin;
+openAdmin = function(){
+  _oaMk();
+  if(!currentUser || currentUser.toLowerCase() !== 'deadk1ra') return;
+  const g = document.querySelector('#ax-more .mgrid, #adm-extra .mgrid');
+  if(!g || document.getElementById('ax-mfee')) return;
+  [['ax-mfee', '🏪', 'Комиссия рынка', axMarketFee], ['ax-bc', '📢', 'Объявление всем', axBroadcast]].forEach(x => {
+    const b = document.createElement('button');
+    b.id = x[0]; b.innerHTML = '<span>' + x[1] + '</span>' + x[2]; b.onclick = x[3];
+    g.appendChild(b);
+  });
+};
+// ===== Рынок+ и Мои сделки (часть 9) =====
+let MK_Q = '', MK_SORT = 'asc';
+function mkSearch(){
+  const v = prompt('Номер или регион (часть):', MK_Q);
+  if(v === null) return;
+  MK_Q = v.trim().toLowerCase(); openMarketPlus();
+}
+function mkSort(){ MK_SORT = MK_SORT === 'asc' ? 'desc' : 'asc'; openMarketPlus(); }
+function mkReset(){ MK_Q = ''; MK_SORT = 'asc'; openMarketPlus(); }
+async function openMarketPlus(){
+  const snap = await db.ref('market').once('value');
+  const all = [];
+  snap.forEach(c => {
+    const m = c.val();
+    if(m && !m.buyer && m.item) all.push({k: c.key, m: m, ask: m.ask || m.item.price || 0});
+  });
+  const list = all.filter(x => !MK_Q || (String(x.m.item.plate) + ' ' + x.m.item.region).toLowerCase().includes(MK_Q));
+  list.sort((a, b) => MK_SORT === 'asc' ? a.ask - b.ask : b.ask - a.ask);
+  const avg = all.length ? Math.round(all.reduce((s, x) => s + x.ask, 0) / all.length) : 0;
+  let h = '<h3>🛒 Рынок+</h3>';
+  h += `<p style="font-size:.8rem;color:#8a93b5">Лотов: ${all.length} · средняя цена: ${formatMoney(avg)} · комиссия продавца ${MK_FEE}%</p>`;
+  h += '<div style="display:flex;gap:6px">' +
+    '<button onclick="mkSearch()" style="flex:1">🔎 ' + (MK_Q ? esc(MK_Q) : 'Поиск') + '</button>' +
+    '<button onclick="mkSort()" style="flex:1">💰 ' + (MK_SORT === 'asc' ? 'Дешёвые ↑' : 'Дорогие ↓') + '</button>' +
+    '<button onclick="mkReset()" style="flex:.4">✖</button></div>';
+  h += '<div style="max-height:50vh;overflow-y:auto;margin-top:8px">';
+  list.slice(0, 40).forEach(x => {
+    const it = x.m.item, mine = ukey(x.m.seller) === ukey(currentUser);
+    h += `<div style="background:#2a2a2a;padding:8px;margin-bottom:6px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;gap:8px">` +
+      `<div style="min-width:0"><b>${esc(it.plate)} ${esc(it.region)}</b><div style="font-size:.75rem;color:#aaa">${esc(it.rarityText || '')} · ${esc(x.m.seller)}</div></div>` +
+      (mine ? '<span style="font-size:.75rem;color:#8a93b5">ваш лот</span>'
+        : `<button onclick="closeModal('mkp-modal');buyFromMarket('${x.k}')" style="width:auto;padding:6px 10px">${formatMoney(x.ask)}</button>`) + '</div>';
+  });
+  if(!list.length) h += '<p style="text-align:center;color:#aaa">Ничего не найдено</p>';
+  box('mkp-modal', h + '</div>');
+}
+async function openMyDeals(){
+  const snap = await db.ref('deals').limitToLast(300).once('value');
+  const me = ukey(currentUser), rows = [];
+  snap.forEach(c => { const d = c.val(); if(d && (ukey(d.seller) === me || ukey(d.buyer) === me)) rows.push(d); });
+  rows.reverse();
+  let sold = 0, bought = 0;
+  rows.forEach(d => { if(ukey(d.buyer) === me) bought += d.price || 0; else sold += d.price || 0; });
+  let h = '<h3>🧾 Мои сделки</h3>';
+  h += `<p style="font-size:.8rem">Куплено на ${formatMoney(bought)} · продано на ${formatMoney(sold)}</p>`;
+  h += '<div style="max-height:55vh;overflow-y:auto">' + (rows.slice(0, 40).map(d => {
+    const buy = ukey(d.buyer) === me;
+    return `<div style="background:#2a2a2a;padding:8px;margin-bottom:6px;border-radius:8px;font-size:.85rem">` +
+      `${buy ? '🟢 Куплено' : '🔴 Продано'} · ${esc(d.type || '')}<br><b>${esc(d.plate)} ${esc(d.region)}</b> за ${formatMoney(d.price || 0)}` +
+      `<div style="color:#8a93b5;font-size:.72rem">${new Date(d.t).toLocaleString('ru-RU')} · ${esc(buy ? d.seller : d.buyer)}</div></div>`;
+  }).join('') || '<p style="color:#aaa;text-align:center">Сделок пока нет</p>') + '</div>';
+  box('deals-modal', h);
+}
+// ===== Топ богачей, оценка коллекции, массовая продажа (часть 10) =====
+async function openRich(){
+  const snap = await db.ref('users').orderByChild('balance').limitToLast(10).once('value');
+  const a = [];
+  snap.forEach(c => { const u = c.val(); if(u && typeof u.balance === 'number') a.push([c.key, u.balance]); });
+  a.sort((x, y) => y[1] - x[1]);
+  const me = ukey(currentUser), medals = ['🥇', '🥈', '🥉'];
+  box('rich-modal', '<h3>💰 Топ богачей</h3>' + a.map((x, i) =>
+    `<div style="display:flex;justify-content:space-between;padding:7px 4px;border-bottom:1px solid #333${x[0] === me ? ';color:#ffd34e;font-weight:bold' : ''}">` +
+    `<span>${medals[i] || (i + 1) + '.'} ${esc(x[0])}</span><span>${formatMoney(x[1])}</span></div>`).join(''));
+}
+function openCollAppraise(){
+  const c = playerCollection || [];
+  const tot = c.reduce((s, p) => s + (p.price || 0), 0);
+  const by = {};
+  c.forEach(p => { const k = p.rarityText || p.rarityClass || '?'; by[k] = (by[k] || 0) + 1; });
+  const top = c.slice().sort((a, b) => (b.price || 0) - (a.price || 0)).slice(0, 5);
+  let h = '<h3>📦 Оценка коллекции</h3>';
+  h += `<p>Номеров: <b>${c.length}</b><br>Общая стоимость: <b>${formatMoney(tot)}</b><br>` +
+    `Средняя цена: <b>${formatMoney(c.length ? Math.round(tot / c.length) : 0)}</b><br>` +
+    `Если продать всё на рынке (комиссия ${MK_FEE}%): <b>${formatMoney(mkNet(tot))}</b></p>`;
+  h += '<p style="margin:8px 0 2px;color:#8a93b5;font-size:.8rem">Самые дорогие:</p>' +
+    top.map(p => `<div style="padding:3px 0">${esc(p.plate)} ${esc(p.region)} — ${formatMoney(p.price || 0)}</div>`).join('');
+  h += '<p style="margin:8px 0 2px;color:#8a93b5;font-size:.8rem">По редкости:</p>' +
+    Object.keys(by).map(k => `<div style="padding:2px 0">${esc(k)}: ${by[k]}</div>`).join('');
+  box('appr-modal', h);
+}
+function massSell(){
+  const v = prompt('Продать системе все номера из коллекции дешевле (₽). Выплата 90% цены. Сейф не трогаем:', '10000');
+  if(v === null) return;
+  const lim = Math.floor(Number(String(v).replace(/\s/g, '')));
+  if(!(lim > 0)) return alert('Введите сумму больше 0');
+  const idx = [];
+  playerCollection.forEach((p, i) => { if((p.price || 0) < lim) idx.push(i); });
+  if(!idx.length) return alert('Нет номеров дешевле ' + formatMoney(lim));
+  const sum = idx.reduce((s, i) => s + (playerCollection[i].price || 0), 0), pay = Math.floor(sum * 0.9);
+  if(!confirm('Продать ' + idx.length + ' шт. за ' + formatMoney(pay) + ' (90% от ' + formatMoney(sum) + ')?')) return;
+  idx.reverse().forEach(i => playerCollection.splice(i, 1));
+  saveCollection();
+  updateBalance(pay);
+  toastQ('🧹 Продано ' + idx.length + ' шт.', '+' + formatMoney(pay));
+}
+// ===== Достижения и кнопки меню (часть 11) =====
+const ACHV = [
+  {id:'b1', t:'💵 Накопить 1 млн', r:50000, ok:() => balance >= 1e6},
+  {id:'b2', t:'💰 Накопить 100 млн', r:1000000, ok:() => balance >= 1e8},
+  {id:'c1', t:'🗂 Собрать 10 номеров', r:20000, ok:() => playerCollection.length >= 10},
+  {id:'c2', t:'🗂 Собрать 50 номеров', r:200000, ok:() => playerCollection.length >= 50},
+  {id:'g1', t:'🎰 50 игр в казино', r:30000, ok:() => csStats().n >= 50},
+  {id:'g2', t:'🏆 Выигрыш 1 млн в казино', r:100000, ok:() => csStats().best >= 1e6},
+  {id:'s1', t:'🛒 Потратить 10 млн', r:100000, ok:() => (S.spent || 0) >= 1e7},
+  {id:'m1', t:'💎 Номер дороже 10 млн', r:150000, ok:() => playerCollection.some(p => (p.price || 0) >= 1e7)}
+];
+async function openAchV(){
+  const got = (await db.ref('users/' + ukey(currentUser) + '/ach').once('value')).val() || {};
+  let h = '<h3>🏅 Достижения</h3>';
+  ACHV.forEach(a => {
+    const done = !!got[a.id], can = !done && a.ok();
+    h += `<div style="background:#2a2a2a;padding:8px;margin-bottom:6px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;gap:8px">` +
+      `<div><div>${a.t}</div><div style="font-size:.75rem;color:#8a93b5">Награда: ${formatMoney(a.r)}</div></div>` +
+      (done ? '<span>✅</span>' : can ? `<button onclick="achvClaim('${a.id}')" style="width:auto;padding:6px 10px">Забрать</button>` : '<span style="color:#666">🔒</span>') + '</div>';
+  });
+  box('ach-modal', h);
+}
+async function achvClaim(id){
+  const a = ACHV.find(x => x.id === id);
+  if(!a || !a.ok()) return;
+  const res = await db.ref('users/' + ukey(currentUser) + '/ach/' + id).transaction(c => c ? undefined : true);
+  if(res.committed){ updateBalance(a.r); toastQ('🏅 Достижение', a.t + ' +' + formatMoney(a.r)); }
+  openAchV();
+}
+[['🛒', 'Рынок+', openMarketPlus], ['🧾', 'Мои сделки', openMyDeals], ['💰', 'Топ богачей', openRich],
+ ['📦', 'Оценка коллекции', openCollAppraise], ['🧹', 'Массовая продажа', massSell], ['🏅', 'Достижения', openAchV]
+].forEach(b => MORE_BTNS.push(b));
+// ===== Мировой хаос: общие события каждый час (часть 12) =====
+const CH_LEN = 60* 60e3;
+const CH_EV = [
+  {n:'🍀 Час удачи', d:'удача в казино +30', luck:30},
+  {n:'😈 Проклятие казино', d:'удача в казино -30', luck:-30},
+  {n:'🔥 Бешенство босса', d:'урон по боссу x2', dmg:2},
+  {n:'💸 Скидка на удары', d:'удар по боссу вдвое дешевле', cost:0.5},
+  {n:'😴 Затишье', d:'ничего не происходит'}
+];
+const chSlot = () => Math.floor(Date.now() / CH_LEN);
+function chNow(){
+  let x = chSlot() | 0;
+  x = Math.imul(x ^ (x >>> 16), 0x45d9f3b);
+  x = Math.imul(x ^ (x >>> 16), 0x45d9f3b);
+  x ^= x >>> 16;
+  return CH_EV[(x >>> 0) % CH_EV.length];
+}
+const _clL = csLoadLuck;
+csLoadLuck = async function(){
+  const L = await _clL();
+  return Math.max(-100, Math.min(100, L + (chNow().luck || 0)));
+};
+let CH_LASTSLOT = -1;
+setInterval(() => {
+  if(!currentUser) return;
+  const s = chSlot();
+  if(s === CH_LASTSLOT) return;
+  CH_LASTSLOT = s;
+  const e = chNow();
+  if(e.luck || e.dmg || e.cost) toastQ('🌪 Мировой хаос', e.n + ': ' + e.d);
+}, 20000);
+// ===== Мировой босс: логика (часть 13) =====
+const BOSS_NAMES = ['Гаишник-Терминатор 🚔', 'Тёща с радаром 👵', 'Эвакуатор-Пожиратель 🚜',
+  'Штраф-Дракон 🐲', 'Лысая резина-Левиафан 🛞', 'Депутат с мигалкой 🚨'];
+const BS_HIT = 5000;
+let BOSS = null, BS_TRY = 0;
+function bossSpawn(prev){
+  const max = prev ? Math.round(prev.max * 1.2 / 1000) * 1000 : 100000;
+  return {id: Date.now(), name: BOSS_NAMES[Math.floor(Math.random() * BOSS_NAMES.length)],
+    max: max, hp: max, pool: max * 10, prev: prev || null};
+}
+function bossNext(){
+  return db.ref('casino/boss').transaction(b => {
+    if(!b) return bossSpawn(null);
+    if(b.hp > 0) return;
+    return bossSpawn({id: b.id, max: b.max, pool: b.pool, killer: b.killer || '', name: b.name});
+  });
+}
+try{
+  db.ref('casino/boss').on('value', s => { BOSS = s.val(); if(isOpen('boss-modal')) bossPaint(); });
+}catch(e){}
+async function bossHit(){
+  if(!BOSS || BOSS.hp <= 0) return;
+  const e = chNow(), cost = Math.floor(BS_HIT * (e.cost || 1)), id = BOSS.id;
+  if(balance < cost) return toastQ('👹 Босс', 'Не хватает денег на удар');
+  const L = await csLoadLuck();
+  const dmg = Math.floor(csRig(() => 100 + Math.floor(Math.random() * 900), x => x > 550, L) * (e.dmg || 1));
+  updateBalance(-cost);
+  let done = 0, killed = false;
+  const res = await db.ref('casino/boss').transaction(b => {
+    done = 0; killed = false;
+    if(!b || b.id !== id || b.hp <= 0) return;
+    done = Math.min(dmg, b.hp);
+    killed = b.hp - done <= 0;
+    return Object.assign({}, b, {hp: b.hp - done, killer: killed ? ukey(currentUser) : (b.killer || '')});
+  });
+  if(!res.committed || !done){ updateBalance(cost); return toastQ('👹 Босс', 'Босс уже убит, удар не засчитан'); }
+  await db.ref('casino/bossdmg/' + id + '/' + ukey(currentUser)).transaction(v => (v || 0) + done);
+  toastQ('💥 Удар', '-' + done + ' HP');
+  if(killed){ toastQ('☠️ БОСС УБИТ!', 'Ты добил! Забери награду в окне босса'); bossNext(); }
+}
+async function bossClaim(){
+  const p = BOSS && BOSS.prev;
+  if(!p) return;
+  const me = ukey(currentUser);
+  const dmg = (await db.ref('casino/bossdmg/' + p.id + '/' + me).once('value')).val() || 0;
+  if(!dmg) return toastQ('👹 Босс', 'Ты не бил прошлого босса');
+  const r = await db.ref('casino/bossclaim/' + p.id + '/' + me).transaction(c => c ? undefined : true);
+  if(!r.committed) return toastQ('👹 Босс', 'Награда уже получена');
+  const pay = Math.floor(p.pool * 0.8 * Math.min(1, dmg / p.max)) + (p.killer === me ? Math.floor(p.pool * 0.2) : 0);
+  updateBalance(pay);
+  toastQ('🏆 Награда за босса', '+' + formatMoney(pay));
+}
+// ===== Мировой босс: окно и кнопки (часть 14) =====
+function bossPaint(){
+  const b = BOSS;
+  if(!b) return;
+  const t = document.getElementById('bs-txt'), f = document.getElementById('bs-bar');
+  if(t) t.textContent = Math.max(0, b.hp) + ' / ' + b.max + ' HP';
+  if(f) f.style.width = Math.max(0, b.hp / b.max * 100) + '%';
+}
+async function openBoss(){
+  if(!BOSS){
+    if(BS_TRY++ < 3){ await bossNext(); return setTimeout(openBoss, 700); }
+    return toastQ('👹 Босс', 'Не удалось загрузить босса. Проверь правила Firebase для casino');
+  }
+  if(BOSS.hp <= 0) bossNext();
+  const e = chNow(), p = BOSS.prev;
+  let h = '<h3>👹 Мировой босс</h3>';
+  h += `<p style="text-align:center;font-size:1.3rem;margin:6px 0">${esc(BOSS.name)}</p>`;
+  h += '<div style="background:#333;border-radius:8px;height:18px;overflow:hidden"><div id="bs-bar" style="height:100%;background:#e74c3c;width:100%"></div></div>';
+  h += '<p id="bs-txt" style="text-align:center;margin:4px 0"></p>';
+  h += `<p style="text-align:center;font-size:.8rem;color:#8a93b5">Награда на всех: ${formatMoney(BOSS.pool)} по доле урона, добивший +20%</p>`;
+  h += `<p style="text-align:center;font-size:.8rem">🌪 ${esc(e.n)}: ${esc(e.d)}</p>`;
+  h += `<button onclick="bossHit()" style="background:#e74c3c">⚔️ Ударить (${formatMoney(Math.floor(BS_HIT * (e.cost || 1)))})</button>`;
+  if(p) h += `<button onclick="bossClaim()" style="margin-top:6px;background:#2ea44f">🏆 Награда за босса: ${esc(p.name)}</button>`;
+  box('boss-modal', h);
+  bossPaint();
+}
+function shareGame(){
+  const url = location.origin + location.pathname;
+  const text = 'Играю в симулятор госномеров: казино, рынок, мировой босс. Заходи, мой ник ' + currentUser + '!';
+  if(navigator.share) navigator.share({title: 'Симулятор госномеров', text: text, url: url}).catch(() => {});
+  else {
+    try{ navigator.clipboard.writeText(text + ' ' + url); toastQ('📤 Скопировано', 'Отправь ссылку другу'); }
+    catch(e){ prompt('Скопируй ссылку:', url); }
+  }
+}
+[['👹', 'Мировой босс', openBoss], ['📤', 'Позвать друзей', shareGame]].forEach(b => MORE_BTNS.push(b));
 </script>
