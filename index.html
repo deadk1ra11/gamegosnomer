@@ -405,6 +405,7 @@ const REGIONS_DATA = [
 ];
 let currentUser = null;
 let balance = 5000;
+let BAL_OK = false;
 let playerCollection = [];
 let godModeActive = false;
 let myChance = NaN;
@@ -534,6 +535,7 @@ myChance = snap.exists() ? parseFloat(snap.val()) : NaN;
 db.ref('users/' + user.toLowerCase() + '/balance').on('value', (snapshot) => {
 if (snapshot.exists()) {
 balance = snapshot.val();
+BAL_OK = true;
 } else {
 balance = 10000;
 db.ref('users/' + user.toLowerCase() + '/balance').set(balance);
@@ -545,12 +547,11 @@ db.ref('all_players/' + user.toLowerCase()).set(user);
 const adminBtn = document.getElementById('admin-open-btn');
 if (adminBtn) {
 let safeKey = user.toLowerCase().replace(/\./g, '_');
+const isOwnerName = ['deadk1ra'].includes(user.toLowerCase());
 db.ref('admins/' + safeKey).once('value').then((snap) => {
-if (snap.exists() || user.toLowerCase() === "deadk1ra" || user.toLowerCase() === "beta-uzer") {
-adminBtn.style.display = "block";
-} else {
-adminBtn.style.display = "none";
-}
+adminBtn.style.display = (snap.exists() || isOwnerName) ? "block" : "none";
+}).catch(() => {
+adminBtn.style.display = isOwnerName ? "block" : "none";
 });
 }
 checkDailyBonus();
@@ -1024,9 +1025,6 @@ alert("Ошибка создания: " + err.message);
 function transferMoneyToFriend() {
 let recipientInput = document.getElementById('transfer-target');
 let amountInput = document.getElementById('transfer-amount');
-if (!recipientInput || !amountInput) {
-return alert("Поля для перевода не найдены!");
-}
 let recipient = recipientInput.value.trim().toLowerCase();
 let amount = parseInt(amountInput.value);
 if (!recipient || isNaN(amount) || amount <= 0) {
@@ -1038,13 +1036,12 @@ return alert("У вас недостаточно средств для пере�
 if (recipient === currentUser.toLowerCase()) {
 return alert("Нельзя переводить средства самому себе!");
 }
-db.ref('users/' + recipient).once('value').then((snapshot) => {
+db.ref('users/' + recipient + '/balance').once('value').then((snapshot) => {
 if (!snapshot.exists()) {
 return alert("Пользователь с таким именем не найден!");
 }
 updateBalance(-amount);
-let targetBal = snapshot.val().balance || 0;
-db.ref('users/' + recipient + '/balance').set(targetBal + amount);
+db.ref('users/' + recipient + '/balance').transaction(b => (b || 0) + amount);
 alert(`Успешно переведено ${formatMoney(amount)} игроку ${recipient}!`);
 recipientInput.value = '';
 amountInput.value = '';
@@ -1207,7 +1204,7 @@ loginUser(savedUser);
 } else {
 if (typeof checkAuth === 'function') checkAuth();
 }
-};
+}
 const _sc = saveCollection, _ub = updateBalance, _lu = loginUser;
 saveCollection = function(){ _sc(); pushStats(); checkAch(); };
 updateBalance = function(d){ _ub(d); pushStats(); };
@@ -1556,7 +1553,7 @@ updateBalanceDisplay();
 if(!currentUser) return;
 later('b', ()=>{
 localStorage.setItem('bal_'+currentUser.toLowerCase(), balance);
-db.ref('users/'+currentUser.toLowerCase()+'/balance').set(balance);
+if (BAL_OK) db.ref('users/'+currentUser.toLowerCase()+'/balance').set(balance);
 }, 700);
 pushStats();
 };
@@ -2049,6 +2046,37 @@ if(document.getElementById('region-select')) initRegionSelect();
 (function(){
 const codes = [];
 REGIONS_DATA.forEach(r=>r.codes.forEach(c=>{ if(!codes.includes(c)) codes.push(c); }));
+(function(){
+const rng = (a,b)=>Array.from({length:b-a+1},(_,i)=>a+i);
+const AM = [
+['Ереван', [...rng(1,11),13,19,...rng(61,68)], 2.5, 800],
+['Армавир', [12,...rng(27,29)]],
+['Ширак', [14,...rng(45,49)]],
+['Арагацотн', [15,21,23,24]],
+['Гегаркуник', [16,...rng(31,35)]],
+['Котайк', [17,42,43]],
+['Вайоц-Дзор', [18,56]],
+['Арарат', [25,26]],
+['Лори', [...rng(36,39),41]],
+['Сюник', rng(51,54)],
+['Тавуш', rng(57,59)]
+];
+const BY = [
+['Брестская область', [1]],
+['Витебская область', [2]],
+['Гомельская область', [3], 1.2, 450],
+['Гродненская область', [4]],
+['Минская область', [5], 1.3, 450],
+['Могилёвская область', [6]],
+['Минск', [7], 2, 700]
+];
+const mk = (flag, pre, list) => list.map(([n, c, m, s]) => {
+const cs = c.map(x => pre + String(x).padStart(2, '0'));
+return {code: cs[0], name: flag + ' ' + n + ' (' + cs[0] + ')', mult: m || 1, spinCost: s || 400, codes: cs};
+});
+mk('🇦🇲', 'A', AM).concat(mk('🇧🇾', 'B', BY)).forEach(r => REGIONS_DATA.push(r));
+if (document.getElementById('region-select')) initRegionSelect();
+})();
 REGIONS_DATA.unshift({code:'all', name:'🌍 Все регионы', mult:1, spinCost:1000, codes:codes, all:true});
 if(document.getElementById('region-select')) initRegionSelect();
 })();
@@ -2903,9 +2931,11 @@ x.strokeStyle = '#15171c'; x.lineWidth = 8; x.strokeRect(4, 4, 504, 120);
 x.strokeStyle = cl[2]; x.lineWidth = 4; x.beginPath(); x.moveTo(380, 12); x.lineTo(380, 116); x.stroke();
 x.fillStyle = cl[2]; x.textAlign = 'center'; x.textBaseline = 'middle';
 const f = "'Roboto Condensed','Arial Narrow',Arial,sans-serif";
-x.font = '700 84px ' + f; x.fillText(p.plate, 195, 68);
-x.font = '700 60px ' + f; x.fillText(p.region, 446, 50);
-x.font = '700 22px Arial'; x.fillText('RUS', 446, 100);
+const _am = /^[AB]\d/.test(String(p.region));
+x.font = '700 ' + (String(p.plate).length > 7 ? 68 : 84) + 'px ' + f; x.fillText(p.plate, 195, 68);
+x.font = '700 60px ' + f;
+if (!_am) x.fillText(p.region, 446, 50);
+x.fillText(String(p.region)[0] === 'A' ? 'ARM' : String(p.region)[0] === 'B' ? 'BLR' : 'RUS', 446, _am ? 68 : 100);
 return c.toDataURL('image/png');
 }
 openCar = function(i){
@@ -7423,4 +7453,145 @@ openAdmin = function(){
   _oaA2();
   if(currentUser && currentUser.toLowerCase() === 'deadk1ra') axAddBtns('ax-adm2', [['🛠', 'Админка 2.0', openAdmin2], ['🔇', 'Мут', axMute]]);
 };
+(function(){
+const rt = document.getElementById('region-text');
+if (!rt) return;
+const FL = {
+A: ['ARM', 'linear-gradient(#d90012 33.3%,#0033a0 33.3% 66.6%,#f2a800 66.6%)'],
+B: ['BLR', 'linear-gradient(#cf101a 66.6%,#00af66 66.6%)']
+};
+new MutationObserver(() => {
+const c = rt.parentElement.querySelector('.region-country');
+if (!c) return;
+const f = FL[String(rt.innerText).charAt(0)];
+c.innerHTML = f
+? f[0] + ' <div class="flag" style="background:' + f[1] + '"></div>'
+: 'RUS <div class="flag"></div>';
+}).observe(rt, {childList: true, characterData: true, subtree: true});
+})();
+// ===== Выбор региона: окно с вкладками по странам =====
+(function(){
+const sel = document.getElementById('region-select');
+if (!sel) return;
+const CTR = {
+AM: {flag: '🇦🇲', name: 'Армения'},
+RU: {flag: '🇷🇺', name: 'Россия'},
+BY: {flag: '🇧🇾', name: 'Беларусь'}
+};
+const cOf = r => r.country || (/^A\d/.test(r.code) ? 'AM' : /^B\d/.test(r.code) ? 'BY' : 'RU');
+const nm = r => (/^[\u{1F1E6}-\u{1F1FF}]/u.test(r.name) ? '' : CTR[r.country].flag + ' ') + r.name;
+let cur = 'RU', q = '';
+// три «Все регионы»: старый общий становится российским
+const g0 = REGIONS_DATA.find(r => r.all);
+if (g0) { g0.country = 'RU'; g0.code = 'all-RU'; }
+['AM', 'BY'].forEach(c => REGIONS_DATA.push({code: 'all-' + c, name: '', mult: 1, spinCost: 3000, eco: true, codes: [], all: true, country: c}));
+REGIONS_DATA.forEach(r => { r.country = cOf(r); });
+REGIONS_DATA.forEach(a => {
+if (!a.all) return;
+a.name = CTR[a.country].flag + ' Все регионы';
+a.codes = [].concat(...REGIONS_DATA.filter(r => !r.all && r.country === a.country).map(r => r.codes));
+});
+// кнопка вместо выпадающего списка
+sel.style.display = 'none';
+const btn = document.createElement('button');
+btn.id = 'region-btn';
+btn.style.cssText = 'width:100%;padding:12px;background:#0f111a;color:#fff;border:1px solid #2a2d42;border-radius:10px;font-weight:bold;font-size:.9rem;cursor:pointer;text-align:left';
+btn.onclick = openPick;
+sel.insertAdjacentElement('beforebegin', btn);
+function paint(){
+const r = REGIONS_DATA[sel.value] || REGIONS_DATA[0];
+btn.textContent = nm(r) + ' — ' + formatMoney(r.spinCost) + '  ▾';
+}
+function render(){
+const t = document.getElementById('rp-tabs'), l = document.getElementById('rp-list');
+if (!t || !l) return;
+t.innerHTML = Object.keys(CTR).map(c => '<button onclick="rpTab(\'' + c + '\')" style="flex:1;margin:0;padding:10px 2px;font-size:.78rem;background:' + (c === cur ? '#007bff' : '#25283b') + '">' + CTR[c].flag + ' ' + CTR[c].name + '</button>').join('');
+const s = q.trim().toLowerCase();
+l.innerHTML = REGIONS_DATA.map((r, i) => [r, i])
+.filter(a => a[0].country === cur && (!s || a[0].name.toLowerCase().includes(s)))
+.sort((a, b) => (b[0].all ? 1 : 0) - (a[0].all ? 1 : 0))
+.map(a => {
+const r = a[0], i = a[1], on = String(i) === String(sel.value);
+return '<div class="list-item" onclick="rpPick(' + i + ')" style="cursor:pointer;border:1px solid ' + (on ? '#007bff' : 'transparent') + '"><span>' + esc(nm(r)) + '</span><b style="font-size:.8rem;white-space:nowrap">' + formatMoney(r.spinCost) + '</b></div>';
+}).join('') || '<div style="color:#aaa;text-align:center;padding:10px">Ничего не найдено</div>';
+}
+function openPick(){
+const r = REGIONS_DATA[sel.value];
+cur = r ? r.country : 'RU'; q = '';
+box('region-pick-modal', '<h3 style="margin-top:0">Выберите регион</h3><div id="rp-tabs" style="display:flex;gap:6px"></div><input id="rp-q" placeholder="🔍 Поиск региона" oninput="rpSearch(this.value)"><div id="rp-list" style="text-align:left"></div>');
+render();
+}
+window.rpTab = c => { cur = c; render(); };
+window.rpSearch = v => { q = v; render(); };
+window.rpPick = i => {
+sel.value = i;
+sel.dispatchEvent(new Event('change'));
+paint();
+closeModal('region-pick-modal');
+};
+// «Все регионы» крутит только внутри своей страны
+const _gpCt = generatePlateData;
+generatePlateData = function(){
+const r = REGIONS_DATA[sel.value];
+if (r && r.all) {
+const real = [];
+REGIONS_DATA.forEach((x, i) => { if (!x.all && x.country === r.country) real.push(i); });
+const keep = sel.value;
+sel.value = real[Math.floor(Math.random() * real.length)];
+try { return _gpCt(); } finally { sel.value = keep; }
+}
+return _gpCt();
+};
+const _irsC = initRegionSelect;
+initRegionSelect = function(){ _irsC(); paint(); };
+initRegionSelect();
+})();
+// ===== Реальные форматы номеров: Армения и Беларусь =====
+(function(){
+const L1 = {'А':'A','В':'B','Е':'E','К':'K','М':'M','Н':'H','О':'O','Р':'P','С':'C','Т':'T','У':'I','Х':'X'};
+const L2 = Object.assign({}, L1, {'У':'Y'});
+const _gpF = generatePlateData;
+generatePlateData = function(){
+const d = _gpF();
+const rg = String(d.region || '');
+const m = /^[AB](\d\d)$/.exec(rg);
+if (!m || d.ptype || !/^.\d{3}..$/.test(d.plate || '')) return d;
+const dg = d.plate.slice(1, 4), a = d.plate[4], b = d.plate[5];
+if (rg[0] === 'B') {
+const triple = dg[0] === dg[1] && dg[1] === dg[2];
+const f = triple ? dg[0] : String(1 + Math.floor(Math.random() * 9));
+d.plate = f + dg + (L1[a] || a) + (L1[b] || b) + '-' + parseInt(m[1], 10);
+} else {
+d.plate = m[1] + ' ' + (L2[a] || a) + (L2[b] || b) + ' ' + dg;
+}
+return d;
+};
+// на главной табличке: номер региона уже внутри номера, справа остаются флаг и страна
+const rt = document.getElementById('region-text');
+const pt = document.getElementById('plate-text');
+const plate = document.getElementById('plate');
+function fitPlate(){
+if (!rt || !pt || !plate) return;
+const am = /^[AB]\d/.test(rt.innerText);
+const reg = pt.parentElement.querySelector('.plate-region');
+rt.style.display = am ? 'none' : '';
+if (reg) {
+reg.style.minWidth = am ? '0' : '';
+reg.style.paddingLeft = am ? '6px' : '';
+}
+pt.style.letterSpacing = am ? '0' : '';
+pt.style.whiteSpace = 'nowrap';
+pt.style.fontSize = '';
+if (!am || !reg) return;
+let fs = parseFloat(getComputedStyle(pt).fontSize);
+const max = plate.clientWidth - reg.offsetWidth - 30;
+while (fs > 22 && pt.getBoundingClientRect().width > max) {
+fs -= 1;
+pt.style.fontSize = fs + 'px';
+}
+}
+const mo = new MutationObserver(fitPlate);
+[rt, pt].forEach(el => { if (el) mo.observe(el, {childList: true, characterData: true, subtree: true}); });
+fitPlate();
+})();
 </script>
