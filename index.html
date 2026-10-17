@@ -1547,13 +1547,17 @@ later('c', ()=>db.ref('collections/'+ukey(currentUser)).set(playerCollection), 7
 pushStats();
 checkAch();
 };
+let _balPend = 0;
 updateBalance = function(d){
 balance += d;
 updateBalanceDisplay();
 if(!currentUser) return;
+_balPend += d;
 later('b', ()=>{
 localStorage.setItem('bal_'+currentUser.toLowerCase(), balance);
-if (BAL_OK) db.ref('users/'+currentUser.toLowerCase()+'/balance').set(balance);
+const x = _balPend;
+_balPend = 0;
+if (x) db.ref('users/'+currentUser.toLowerCase()+'/balance').transaction(b => Math.max(0, (typeof b === 'number' ? b : 0) + x));
 }, 700);
 pushStats();
 };
