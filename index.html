@@ -404,7 +404,7 @@ const REGIONS_DATA = [
 { code: '05',  name: 'Дагестан (05)', mult: 2.0, spinCost: 600, codes: ['05', '105'] }
 ];
 let currentUser = null;
-let balance = 5000;
+let balance = 15000;
 let BAL_OK = false;
 let playerCollection = [];
 let godModeActive = false;
@@ -538,6 +538,7 @@ balance = snapshot.val();
 BAL_OK = true;
 } else {
 balance = 10000;
+BAL_OK = true;
 db.ref('users/' + user.toLowerCase() + '/balance').set(balance);
 }
 localStorage.setItem('bal_' + user.toLowerCase(), balance);
@@ -1396,6 +1397,7 @@ const _gp2 = generatePlateData;
 generatePlateData = function(){
 const d = _gp2();
 if(godModeActive) return d;
+if(/^[AB]\d/.test(String(d.region))) return d;
 let r = Math.random()*100, acc = 0;
 for(const k in PT){
 acc += PT[k].p;
@@ -4252,15 +4254,7 @@ function namedReveal(d){
 const own = (d.rarityText || '').split('·').slice(1).join('·').trim();
 box('named-modal', '<div style="background:radial-gradient(#4a3b00,#0a0a0a);padding:16px;border-radius:14px;text-align:center"><div style="display:flex;justify-content:space-between;background:linear-gradient(#e6c200,#a58800);color:#000;border-radius:10px;padding:8px 12px;font-weight:700"><span>Эпический</span><span>' + formatMoney(d.price) + '</span></div><div style="margin:26px 0"><div style="transform:scale(1.7);display:inline-block">' + miniPlate(d) + '</div></div><div style="color:#bbb;font-size:1.05rem">' + esc(own) + '</div></div>');
 }
-const _sp9 = spinNumber;
-spinNumber = function(){
-const n = playerCollection.length;
-_sp9();
-if(playerCollection.length > n){
-const d = playerCollection[playerCollection.length - 1];
-if(/Именной/.test(d.rarityText || '')) namedReveal(d);
-}
-};
+// окно именного номера убрано, вместо него «кино»-анимация
 rcBotAI = function(b, dt, now, go){
 if(now < go + b.react){ b.gas = false; return; }
 b.gas = true;
@@ -4695,7 +4689,7 @@ openAdmin = function(){
   g.appendChild(b);
 };
 // ===== Экономика: цены номеров ниже, прокрут дороже =====
-const PRICE_K = 0.6;
+const PRICE_K = 1;
 const SPIN_K = 3;
 REGIONS_DATA.forEach(r => {
   if(!r.eco){ r.spinCost = Math.round(r.spinCost * SPIN_K); r.eco = true; }
@@ -7598,4 +7592,1133 @@ const mo = new MutationObserver(fitPlate);
 [rt, pt].forEach(el => { if (el) mo.observe(el, {childList: true, characterData: true, subtree: true}); });
 fitPlate();
 })();
+// ===== Анимация роста цены при выпадении (кино для эпик/лега) — часть 1 =====
+(function(){
+const tag = document.getElementById('plate-price-tag');
+const plate = document.getElementById('plate');
+if (!tag || !plate) return;
+const ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic', 'godlike'];
+const COL = {common: '#8b949e', uncommon: '#2da44e', rare: '#388bfd', epic: '#a370f7', legendary: '#f1c40f', mythic: '#ff4d4d', godlike: '#00f2fe'};
+const CSS = document.createElement('style');
+CSS.textContent = '.header,.region-selector-box,.btn-container,.bottom-menu,#tabbar{transition:opacity .45s}body.cine .header,body.cine .region-selector-box,body.cine .btn-container,body.cine .bottom-menu,body.cine #tabbar{opacity:0!important;pointer-events:none!important}';
+document.head.appendChild(CSS);
+const GLOW = document.createElement('div');
+GLOW.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:1;opacity:0;transition:opacity .5s;mix-blend-mode:screen';
+document.body.appendChild(GLOW);
+const RS = document.createElement('div');
+RS.style.cssText = 'text-align:center;color:#9aa0b4;font-size:.85rem;min-height:1.2em;margin-top:8px;line-height:1.5';
+plate.insertAdjacentElement('afterend', RS);
+tag.style.transition = 'color .3s, transform .2s';
+let state = 'idle', ours = '', final = 0, timer = 0, raf = 0, lastPlate = '', curR = [], shownN = 0, curFi = 0;
+const skipOf = fi => localStorage.getItem(fi >= 4 ? 'skipLegend' : 'skipEpic') === '1';
+
+function reasons(){
+const out = [];
+const p = (document.getElementById('plate-text').innerText || '').replace(/\s/g, '');
+const m = /^(.)(\d)(\d)(\d)(.)(.)$/.exec(p);
+if (m) {
+const a = m[1], d1 = m[2], d2 = m[3], d3 = m[4], b = m[5], c = m[6];
+if (a === b && b === c) out.push('3 одинаковые буквы');
+else if (a === b || a === c || b === c) out.push('2 одинаковые буквы');
+if (a === c && a !== b) out.push('Палиндром букв');
+if (d1 === d2 && d2 === d3) out.push('3 одинаковые цифры');
+else if (d1 === d2 || d1 === d3 || d2 === d3) out.push('2 одинаковые цифры');
+if (d1 === d3 && d1 !== d2) out.push('Зеркальные цифры');
+if ((+d2 === +d1 + 1 && +d3 === +d2 + 1) || (+d2 === +d1 - 1 && +d3 === +d2 - 1)) out.push('Цифры по порядку');
+if (d2 === '0' && d3 === '0') out.push('Круглое число');
+}
+const rt = (document.getElementById('rarity-text').innerText || '').split('·').slice(1);
+rt.forEach(s => { s = s.replace(/\(В коллекции!\)/, '').trim(); if (s) out.push(s); });
+return out.slice(0, 4);
+}
+function addReason(text){
+const d = document.createElement('div');
+d.textContent = text;
+d.style.cssText = 'opacity:0;transition:opacity .4s';
+RS.appendChild(d);
+requestAnimationFrame(() => { d.style.opacity = 1; });
+shownN++;
+}
+function paint(v, idx){
+ours = formatMoney(v);
+tag.innerText = ours;
+tag.style.color = COL[ORDER[idx]];
+}
+function glow(idx){
+GLOW.style.background = idx ? 'radial-gradient(ellipse at 50% 58%, ' + COL[ORDER[idx]] + '40, transparent 65%)' : '';
+GLOW.style.opacity = idx ? 1 : 0;
+}
+function tween(from, to, ms, cb, done){
+const t0 = performance.now();
+(function f(t){
+const k = Math.min(1, (t - t0) / ms), e = 1 - Math.pow(1 - k, 3);
+cb(Math.round(from + (to - from) * e));
+if (k < 1) raf = requestAnimationFrame(f); else if (done) done();
+})(t0);
+}
+function reset(){
+clearTimeout(timer); cancelAnimationFrame(raf);
+RS.innerHTML = ''; shownN = 0; glow(0);
+tag.style.color = ''; tag.style.transform = '';
+document.body.classList.remove('cine');
+state = 'idle';
+}
+// ===== часть 2 =====
+function finish(){
+paint(final, curFi); glow(curFi);
+tag.style.transform = '';
+state = 'done';
+}
+let prevSnap = null;
+function flyAway(){
+if (prevSnap) {
+const r = plate.getBoundingClientRect();
+const g = prevSnap;
+g.style.cssText += ';position:fixed;margin:0;pointer-events:none;z-index:5;animation:none;opacity:1;transition:transform .9s cubic-bezier(.2,.7,.3,1),opacity .9s;transform-origin:50% 50%;left:' + r.left + 'px;top:' + r.top + 'px;width:' + r.width + 'px;height:' + r.height + 'px';
+plate.parentElement.appendChild(g);
+requestAnimationFrame(() => requestAnimationFrame(() => {
+g.style.transform = 'translateY(-' + Math.round(r.height * 1.3) + 'px) scale(.55)';
+g.style.opacity = '0';
+}));
+setTimeout(() => g.remove(), 1000);
+}
+prevSnap = plate.cloneNode(true);
+}
+function start(t){
+final = parseInt(t.replace(/\D/g, ''), 10);
+if (!final) return;
+flyAway();
+state = 'run';
+const cls = (plate.className.match(/\b(uncommon|common|rare|epic|legendary|mythic|godlike)\b/) || [0, 'uncommon'])[1];
+const fi = ORDER.indexOf(cls), R = reasons(), k = R.length;
+const cine = fi >= 3 && !skipOf(fi);
+const TT = cine ? 3200 : 1000;
+const base = cine ? 0 : Math.min(final, Math.max(50, Math.round(final / Math.pow(2.5, k || 1))));
+const g = (k && base) ? Math.pow(final / base, 1 / k) : 1;
+curFi = fi; curR = R; shownN = 0;
+let j = 0, cur = k ? base : 0;
+if (cine) document.body.classList.add('cine');
+paint(cur, 0); glow(0);
+(function next(){
+if (state !== 'run') return;
+j++;
+const idx = k ? Math.round(fi * j / k) : fi;
+const to = (j >= k) ? final : (cine ? Math.round(final * Math.pow(j / k, 1.6)) : Math.round(base * Math.pow(g, j)));
+if (k && R[j - 1]) addReason(R[j - 1]);
+tag.style.transform = 'scale(1.12)';
+glow(idx);
+tween(cur, to, TT / Math.max(1, k), v => { cur = v; paint(v, idx); }, () => {
+tag.style.transform = '';
+if (j >= k) {
+finish();
+if (cine) timer = setTimeout(() => document.body.classList.remove('cine'), 1300);
+return;
+}
+next();
+});
+})();
+}
+new MutationObserver((recs) => {
+if (tag.style.display === 'none') { if (state !== 'idle') reset(); return; }
+if (!recs.some(r => r.type !== 'attributes')) return;
+const t = tag.innerText;
+const pt = document.getElementById('plate-text').innerText || '';
+if (state !== 'idle' && t === ours && pt === lastPlate) return;
+reset();
+lastPlate = pt;
+start(t);
+}).observe(tag, {childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['style']});
+})();
+// ===== 💥 ФУЛЛ БЛАТ (часть 1) =====
+let FULLBLAT_CHANCE = 0.0005; // 0.05% на крутку
+
+(function(){
+  const st = document.createElement('style');
+  st.textContent =
+    '.number-plate.fullblat{border-color:#ff2d6f;background:#fff0f6;' +
+    'box-shadow:0 0 60px #ff2d6f,0 0 120px #ffb300;' +
+    'animation:fbPulse 1.2s infinite alternate}' +
+    '.status-fullblat{color:#ff2d6f;text-shadow:0 0 12px #ff2d6f}' +
+    '@keyframes fbPulse{from{filter:brightness(1)}to{filter:brightness(1.25)}}';
+  document.head.appendChild(st);
+})();
+
+RK.fullblat = 6;
+QRK.fullblat = 6;
+XPR.fullblat = 1000;
+RN.fullblat = '💥 Фулл блат';
+RTXT.fullblat = '💥 ФУЛЛ БЛАТ';
+RPR.fullblat = [200000000, 500000000];
+
+function isFullBlat(plate){
+  const p = String(plate || '');
+  return p.length === 6 &&
+    p[0] === p[4] && p[4] === p[5] &&
+    p[1] === p[2] && p[2] === p[3];
+}
+const _gpFull = generatePlateData;
+generatePlateData = function(){
+  const d = _gpFull();
+  if (godModeActive || DROP || /Именной/.test(d.rarityText || '')) return d;
+  if (!isFullBlat(d.plate)) {
+    if (Math.random() >= FULLBLAT_CHANCE) return d;
+    const L = getRandomElem(LETTERS), D = getRandomDigit();
+    d.plate = L + D + D + D + L + L;
+  }
+  const R = REGIONS_DATA.find(r => !r.all && r.codes.indexOf(d.region) >= 0) || {mult: 1};
+  const k = typeof PRICE_K !== 'undefined' ? PRICE_K : 1;
+  const pt = d.ptype && PT[d.ptype] ? PT[d.ptype] : null;
+  const pr = RPR.fullblat;
+  d.rarityClass = 'fullblat';
+  d.rarityText = RTXT.fullblat + (pt ? ' · ' + pt.n : '');
+  d.price = Math.floor((pr[0] + Math.random() * (pr[1] - pr[0])) * R.mult * (pt ? pt.m : 1) * k);
+  return d;
+};
+// ===== 🍀 Гарант + салют (часть 2) =====
+let PITY_LIMIT = 150; // каждые 150 круток без легендарного и выше
+
+function pityKey(){
+  return 'pity_' + (typeof currentUser !== 'undefined' && currentUser ? currentUser : 'guest');
+}
+
+function showPityInfo(n){
+  const r = document.getElementById('rarity-text');
+  if (!r) return;
+  let e = document.getElementById('pity-info');
+  if (!e) {
+    e = document.createElement('div');
+    e.id = 'pity-info';
+    e.style.cssText = 'font-size:.75rem;color:#8b93b0;margin-top:4px';
+    r.parentNode.insertBefore(e, r.nextSibling);
+  }
+  e.textContent = '🍀 До гарантии легендарного: ' + (PITY_LIMIT - n);
+}
+
+const _gpPity = generatePlateData;
+generatePlateData = function(){
+  const d = _gpPity();
+  if (godModeActive || DROP || /Именной/.test(d.rarityText || '')) return d;
+  const key = pityKey();
+  let n = Number(localStorage.getItem(key) || 0) + 1;
+  if (n >= PITY_LIMIT) {
+    if ((RK[d.rarityClass] || 0) < 4) {
+      const R = REGIONS_DATA.find(r => !r.all && r.codes.indexOf(d.region) >= 0) || {mult: 1};
+      const k = typeof PRICE_K !== 'undefined' ? PRICE_K : 1;
+      const pt = d.ptype && PT[d.ptype] ? PT[d.ptype] : null;
+      const pr = RPR.legendary;
+      d.plate = mkPlate('legendary').plate;
+      d.rarityClass = 'legendary';
+      d.rarityText = RTXT.legendary + ' · 🍀 Гарант' + (pt ? ' · ' + pt.n : '');
+      d.price = Math.floor((pr[0] + Math.random() * (pr[1] - pr[0])) * R.mult * (pt ? pt.m : 1) * k);
+    }
+    n = 0;
+  }
+  localStorage.setItem(key, n);
+  showPityInfo(n);
+  return d;
+};
+// ===== 🌟 Цифра дня (часть 3) =====
+function dailyDigit(){
+  const t = new Date();
+  const s = t.getFullYear() * 10000 + (t.getMonth() + 1) * 100 + t.getDate();
+  return String((Math.imul(s, 2654435761) >>> 0) % 10);
+}
+function todayKey(){
+  const t = new Date();
+  return t.getFullYear() + '-' + (t.getMonth() + 1) + '-' + t.getDate();
+}
+
+function showDailyInfo(){
+  const anchor = document.getElementById('pity-info') || document.getElementById('rarity-text');
+  if (!anchor) return;
+  let e = document.getElementById('daily-info');
+  if (!e) {
+    e = document.createElement('div');
+    e.id = 'daily-info';
+    e.style.cssText = 'font-size:.78rem;color:#a0a5ba;margin-top:6px;line-height:1.4';
+    anchor.parentNode.insertBefore(e, anchor.nextSibling);
+  }
+  let best = null;
+  try { best = JSON.parse(localStorage.getItem('best_' + pityKey() + '_' + todayKey()) || 'null'); } catch(_) {}
+  e.innerHTML = '🌟 Цифра дня: <b style="color:#f1c40f">' + dailyDigit() +
+    '</b> (две в номере ×1.5, три ×3)' +
+    (best ? '<br>🏆 Лучший за сегодня: ' + esc(best.plate) + ' · ' + formatMoney(best.price) : '');
+}
+
+const _gpDaily = generatePlateData;
+generatePlateData = function(){
+  const d = _gpDaily();
+  if (godModeActive || DROP || /Именной/.test(d.rarityText || '')) return d;
+  if (String(d.plate).length !== 6) return d;
+  const D = dailyDigit();
+  let dg = d.plate.slice(1, 4).split('');
+  let cnt = dg.filter(x => x === D).length;
+
+  // 4% шанс подкрутить обычный номер: две цифры дня
+  if (cnt < 2 && d.rarityClass === 'common' && Math.random() < 0.04) {
+    let o = getRandomDigit();
+    if (o === D) o = String((+D + 1) % 10);
+    dg = [D, D, D];
+    dg[Math.floor(Math.random() * 3)] = o;
+    d.plate = d.plate[0] + dg.join('') + d.plate.slice(4);
+    cnt = 2;
+  }
+  if (cnt >= 2) {
+    d.price = Math.floor(d.price * (cnt === 3 ? 3 : 1.5));
+    d.rarityText += ' · 🌟 Цифра дня';
+  }
+
+  const bk = 'best_' + pityKey() + '_' + todayKey();
+  let best = null;
+  try { best = JSON.parse(localStorage.getItem(bk) || 'null'); } catch(_) {}
+  if (!best || d.price > best.price) {
+    localStorage.setItem(bk, JSON.stringify({plate: d.plate, price: d.price}));
+  }
+  showDailyInfo();
+  return d;
+};
+
+showDailyInfo();
+// ===== 🧭 Верхняя плашка + учёт (часть 4) =====
+['pity-info', 'daily-info'].forEach(id => { const e = document.getElementById(id); if (e) e.remove(); });
+
+let FX_LAST = null;
+const fxShort = n => n >= 1e9 ? (n / 1e9).toFixed(1) + 'млрд' :
+  n >= 1e6 ? (n / 1e6).toFixed(1) + 'М' : n >= 1e3 ? Math.round(n / 1e3) + 'К' : String(n);
+const FXK = () => 'fxs_' + (typeof currentUser !== 'undefined' && currentUser ? String(currentUser).toLowerCase() : 'guest');
+
+function fxLoad(){
+  try { const s = JSON.parse(localStorage.getItem(FXK()) || 'null'); if (s) return s; } catch(_) {}
+  return {spins: 0, by: {}, best: null, hist: []};
+}
+function fxSave(s){ localStorage.setItem(FXK(), JSON.stringify(s)); }
+
+const TITLES = [[0, '🐣 Новичок'], [50, '🚗 Водила'], [200, '🎰 Крутила'],
+  [500, '🔥 Азартный'], [1000, '👑 Король номеров'], [3000, '🌌 Легенда трассы']];
+function fxTitle(s){
+  if ((s.by.fullblat || 0) > 0) return '💥 Блатной авторитет';
+  let t = TITLES[0][1];
+  TITLES.forEach(x => { if (s.spins >= x[0]) t = x[1]; });
+  return t;
+}
+
+function fxBar(){
+  let b = document.getElementById('fx-bar');
+  if (!b) {
+    b = document.createElement('div');
+    b.id = 'fx-bar';
+    b.style.cssText = 'width:100%;max-width:520px;margin:0 0 8px;padding:7px 10px;' +
+      'background:#161a26;border:1px solid #2b3145;border-radius:12px;font-size:.74rem;' +
+      'color:#a0a5ba;display:flex;flex-wrap:wrap;gap:4px 12px;justify-content:center;' +
+      'cursor:pointer;line-height:1.3';
+    b.onclick = () => fxHub();
+    document.body.insertBefore(b, document.body.firstChild);
+  }
+  return b;
+}
+
+function fxRender(){
+  const s = fxLoad();
+  const pity = Number(localStorage.getItem(pityKey()) || 0);
+  let best = null;
+  try { best = JSON.parse(localStorage.getItem('best_' + pityKey() + '_' + todayKey()) || 'null'); } catch(_) {}
+  fxBar().innerHTML =
+    '<span>' + fxTitle(s) + '</span>' +
+    '<span>🍀 гарант: ' + (PITY_LIMIT - pity) + '</span>' +
+    '<span>🌟 цифра дня: <b style="color:#f1c40f">' + dailyDigit() + '</b></span>' +
+    '<span>🎰 ' + s.spins + '</span>' +
+    (best ? '<span>🏆 сегодня: ' + fxShort(best.price) + '</span>' : '') +
+    '<span style="color:#5b8cff">▾ меню</span>';
+}
+showPityInfo = fxRender;
+showDailyInfo = fxRender;
+
+const _spFx = showPlate;
+showPlate = function(d){
+  _spFx(d);
+  if (!d) return;
+  FX_LAST = {d: d, sold: false};
+  const s = fxLoad(), r = d.rarityClass || 'common';
+  s.spins++;
+  s.by[r] = (s.by[r] || 0) + 1;
+  if (!s.best || d.price > s.best.price) s.best = {plate: d.plate, region: d.region, price: d.price};
+  s.hist.unshift({p: d.plate, g: d.region, r: r, c: d.price, t: Date.now()});
+  s.hist = s.hist.slice(0, 20);
+  fxSave(s);
+  fxRender();
+};
+
+const _luFx = loginUser;
+loginUser = function(u){ _luFx(u); setTimeout(fxRender, 600); };
+fxRender();
+// ===== 📜 Меню, история, статистика (часть 5) =====
+const FX_BS = 'display:block;width:100%;margin:6px 0;padding:11px;border:0;' +
+  'border-radius:10px;color:#fff;font-weight:bold;background:#2a2f45';
+
+function fxHub(){
+  box('fx-hub', '<h3>🧭 Меню круток</h3>' +
+    '<button style="' + FX_BS + '" onclick="closeModal(\'fx-hub\');fxMulti()">⚡ Мультикрутка</button>' +
+    '<button style="' + FX_BS + '" onclick="fxAutoCycle()">🧹 Авто-продажа: ' + fxAutoLabel() + '</button>' +
+    '<button style="' + FX_BS + '" onclick="fxHistory()">📜 История круток</button>' +
+    '<button style="' + FX_BS + '" onclick="fxStats()">📊 Моя удача</button>');
+}
+
+function fxHistory(){
+  const s = fxLoad();
+  const rows = s.hist.map(h => {
+    const t = new Date(h.t);
+    const hh = String(t.getHours()).padStart(2, '0') + ':' + String(t.getMinutes()).padStart(2, '0');
+    return '<div class="list-item"><span><b>' + esc(h.p) + '</b> ' + esc(h.g) +
+      '<br><small>' + esc(RTXT[h.r] || 'Обычный номер') + ' · ' + hh + '</small></span><b>' +
+      formatMoney(h.c) + '</b></div>';
+  }).join('');
+  box('fx-hist', '<h3>📜 Последние 20 круток</h3>' + (rows || '<p>Пока пусто</p>'));
+}
+
+function fxStats(){
+  const s = fxLoad();
+  const names = {common: 'Обычные', uncommon: 'Зеркальные', rare: 'Редкие', epic: 'Эпические',
+    legendary: 'Легендарные', godlike: 'Эксклюзивы', fullblat: '💥 Фулл блат'};
+  const row = (a, b) => '<div class="list-item"><span>' + a + '</span><b>' + b + '</b></div>';
+  let h = '<h3>📊 Моя удача</h3>' + row('🏷 Титул', fxTitle(s)) + row('🎰 Всего круток', s.spins);
+  if (s.best) h += row('🏆 Лучший номер', esc(s.best.plate) + ' · ' + formatMoney(s.best.price));
+  Object.keys(names).forEach(k => {
+    if (s.by[k]) h += row(names[k], s.by[k] + ' (' + (s.by[k] * 100 / s.spins).toFixed(2) + '%)');
+  });
+  const next = TITLES.find(x => x[0] > s.spins);
+  if (next) h += row('⏭ До «' + next[1] + '»', (next[0] - s.spins) + ' круток');
+  box('fx-stats', h);
+}
+// ===== ⚡ Мультикрутка + 🧹 авто-продажа (часть 6) =====
+const FX_AUTO = ['', 'common', 'uncommon', 'rare'];
+const FX_AUTO_NAME = {'': 'выкл', common: 'обычные', uncommon: 'до зеркальных', rare: 'до редких'};
+const fxAutoGet = () => localStorage.getItem('fx_auto') || '';
+const fxAutoLabel = () => FX_AUTO_NAME[fxAutoGet()];
+
+function fxAutoCycle(){
+  const i = FX_AUTO.indexOf(fxAutoGet());
+  localStorage.setItem('fx_auto', FX_AUTO[(i + 1) % FX_AUTO.length]);
+  closeModal('fx-hub');
+  fxHub();
+}
+
+function fxAutoSell(){
+  const lim = fxAutoGet();
+  if (!lim) return;
+  const i = playerCollection.length - 1, p = playerCollection[i];
+  if (!p) return;
+  if (p.ptype || /Региональный|Цифра дня|Гарант|Именной|Выдано/.test(p.rarityText || '')) return;
+  if ((RK[p.rarityClass || 'common'] || 0) > FX_AUTO.indexOf(lim) - 1) return;
+  sellSelectedPlate(i);
+  if (FX_LAST) FX_LAST.sold = true;
+}
+
+const _spAuto = spinNumber;
+spinNumber = function(){
+  const n = playerCollection.length;
+  _spAuto();
+  if (playerCollection.length > n) fxAutoSell();
+};
+
+function fxMulti(){
+  box('fx-multi', '<h3>⚡ Мультикрутка</h3>' +
+    '<p style="color:#a0a5ba;font-size:.85rem">Крутит подряд, пока хватает денег. ' +
+    'Авто-продажа: ' + fxAutoLabel() + '.</p>' +
+    [5, 10, 25].map(n => '<button style="' + FX_BS + '" onclick="closeModal(\'fx-multi\');fxMultiRun(' +
+      n + ')">×' + n + '</button>').join(''));
+}
+
+let FX_BUSY = false, FX_STOP = false;
+function fxMultiRun(n){
+  if (!currentUser) return alert('Сначала авторизуйтесь!');
+  if (FX_BUSY) return;
+  FX_BUSY = true; FX_STOP = false;
+  const log = {n: 0, sold: 0, soldSum: 0, keepSum: 0, best: null};
+  const stop = document.createElement('button');
+  stop.textContent = '⏹ Стоп';
+  stop.style.cssText = 'position:fixed;top:60px;left:50%;transform:translateX(-50%);z-index:100000;' +
+    'padding:10px 22px;border:0;border-radius:20px;background:#e74c3c;color:#fff;font-weight:bold';
+  stop.onclick = () => { FX_STOP = true; };
+  document.body.appendChild(stop);
+  const step = () => {
+    const sel = document.getElementById('region-select');
+    const reg = REGIONS_DATA[sel ? sel.value : 0];
+    if (FX_STOP || log.n >= n || balance < (reg ? reg.spinCost : 0)) return fxMultiEnd(log, stop);
+    FX_LAST = null;
+    spinNumber();
+    const r = FX_LAST;
+    if (!r) return fxMultiEnd(log, stop);
+    log.n++;
+    if (r.sold) { log.sold++; log.soldSum += r.d.price; } else log.keepSum += r.d.price;
+    if (!log.best || r.d.price > log.best.price) log.best = r.d;
+    setTimeout(step, 450);
+  };
+  step();
+}
+
+function fxMultiEnd(log, stop){
+  FX_BUSY = false;
+  if (stop) stop.remove();
+  const row = (a, b) => '<div class="list-item"><span>' + a + '</span><b>' + b + '</b></div>';
+  box('fx-multi-res', '<h3>⚡ Итоги мультикрутки</h3>' + row('🎰 Круток', log.n) +
+    row('📦 Оставлено', (log.n - log.sold) + ' шт. · ' + formatMoney(log.keepSum)) +
+    row('🧹 Продано', log.sold + ' шт. · +' + formatMoney(log.soldSum)) +
+    (log.best ? row('🏆 Лучший', esc(log.best.plate) + ' · ' + formatMoney(log.best.price)) : ''));
+}
+// ===== 🎬 Кино: переключатели в настройках (часть 7) =====
+const fxKinoOn = k => localStorage.getItem(k) !== '1';
+
+function fxKinoToggle(k){
+  localStorage.setItem(k, fxKinoOn(k) ? '1' : '0');
+  fxKinoRender();
+}
+
+function fxKinoRender(){
+  const mc = document.querySelector('#settings-modal .modal-content');
+  if (!mc) return;
+  let w = document.getElementById('fx-kino');
+  if (!w) {
+    w = document.createElement('div');
+    w.id = 'fx-kino';
+    w.style.cssText = 'margin:15px 0;text-align:left;border-top:1px solid #333652;padding-top:15px';
+    mc.insertBefore(w, mc.children[2] || null);
+  }
+  const row = (k, name) => '<button onclick="fxKinoToggle(\'' + k + '\')" style="display:block;' +
+    'width:100%;margin:6px 0 0;padding:10px;border:0;border-radius:10px;color:#fff;font-weight:bold;' +
+    'background:' + (fxKinoOn(k) ? '#2a2f45' : '#7f3b3b') + '">' + name + ': ' +
+    (fxKinoOn(k) ? 'вкл' : 'выкл') + '</button>';
+  w.innerHTML = '<label style="font-size:.8rem;color:#a0a5ba;display:block;font-weight:bold">' +
+    '🎬 КИНО ПРИ ВЫПАДЕНИИ:</label>' + row('skipEpic', '👑 Эпики') + row('skipLegend', '💎 Леги и выше');
+}
+
+const _omKino = openModal;
+openModal = function(id){
+  _omKino(id);
+  if (id === 'settings-modal') fxKinoRender();
+};
+
+// фулл блат: полное кино (как у божественных) + конфетти
+const _spKino = showPlate;
+showPlate = function(d){
+  _spKino(d);
+  if (!d || d.rarityClass !== 'fullblat') return;
+  const p = document.getElementById('plate');
+  if (p) p.classList.add('godlike');
+  if (typeof fxConfetti === 'function' && localStorage.getItem('fx_off') !== '1') fxConfetti(300);
+};
+// ===== 🛠 Админ: выдача (часть 8) =====
+const AX_RAR = ['uncommon', 'rare', 'epic', 'legendary', 'godlike', 'fullblat'];
+
+function axMkItem(plate, region, r){
+  const R = REGIONS_DATA.find(x => !x.all && x.codes.indexOf(region) >= 0) || {mult: 1};
+  const pr = RPR[r] || [800, 2800];
+  return {plate: plate, region: region, rarityClass: r, rarityText: RTXT[r] || 'Обычный номер',
+    price: Math.floor((pr[0] + Math.random() * (pr[1] - pr[0])) * R.mult),
+    style: 'standard', frame: 'standard'};
+}
+function axRegionAsk(){
+  const v = prompt('Регион номера (например 77, 102, 116):', '77');
+  return v ? v.trim() : null;
+}
+function axRarityOf(p){
+  const sameL = p[0] === p[4] && p[4] === p[5], sameD = p[1] === p[2] && p[2] === p[3];
+  if (sameL && sameD) return 'fullblat';
+  if (sameD) return 'legendary';
+  if (p[1] === p[3] && p[1] !== p[2]) return 'uncommon';
+  return 'common';
+}
+function axFbPlate(){
+  const L = getRandomElem(LETTERS), D = getRandomDigit();
+  return L + D + D + D + L + L;
+}
+
+function axGiveFB(){
+  if (!axOwner()) return;
+  const n = axUser(); if (!n) return;
+  const reg = axRegionAsk(); if (!reg) return;
+  const it = axMkItem(axFbPlate(), reg, 'fullblat');
+  axGive(n, it).then(() => alert('💥 Выдан ФУЛЛ БЛАТ ' + it.plate + ' ' + reg + ' → ' + n));
+}
+
+function axGivePlate(){
+  if (!axOwner()) return;
+  const n = axUser(); if (!n) return;
+  const lat = {A:'А', B:'В', E:'Е', K:'К', M:'М', H:'Н', O:'О', P:'Р', C:'С', T:'Т', Y:'У', X:'Х'};
+  const t = axV('ax-val').toUpperCase().replace(/[A-Z]/g, c => lat[c] || c);
+  if (!/^[АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ]{2}$/.test(t)) return alert('В «Значение» впиши номер вида К777КК');
+  const reg = axRegionAsk(); if (!reg) return;
+  const it = axMkItem(t, reg, axRarityOf(t));
+  axGive(n, it).then(() => alert('Выдан ' + t + ' ' + reg + ' (' + it.rarityText + ') → ' + n));
+}
+
+function axGiveRar(){
+  if (!axOwner()) return;
+  const n = axUser(); if (!n) return;
+  const r = prompt('Редкость: ' + AX_RAR.join(', '), 'legendary');
+  if (!AX_RAR.includes(r)) return alert('Нет такой редкости');
+  const c = Math.min(20, Math.max(1, num(prompt('Сколько штук (до 20):', '3')) || 1));
+  (async () => {
+    const got = [];
+    for (let i = 0; i < c; i++) {
+      const it = r === 'fullblat' ? axMkItem(axFbPlate(), '77', r) : mkPlate(r);
+      await axGive(n, it);
+      got.push(it.plate);
+    }
+    alert('Выдано ' + c + ' шт. → ' + n + ':\n' + got.join(', '));
+  })();
+}
+
+function axCleanCommons(){
+  if (!axOwner()) return;
+  const n = axUser(); if (!n) return;
+  if (!confirm('Удалить ОБЫЧНЫЕ номера у ' + n + '? Остальные останутся.')) return;
+  let removed = 0;
+  db.ref('collections/' + ukey(n)).transaction(c => {
+    if (!c) return c;
+    const a = Array.isArray(c) ? c.filter(Boolean) : Object.values(c);
+    const keep = a.filter(p => (p.rarityClass || 'common') !== 'common');
+    removed = a.length - keep.length;
+    return keep;
+  }).then(() => alert('Удалено обычных: ' + removed));
+}
+// ===== 📈 Админ: аналитика (часть 9) =====
+const axArr = v => Array.isArray(v) ? v.filter(Boolean) : (v ? Object.values(v) : []);
+const axRow = (a, b) => '<div class="list-item"><span>' + a + '</span><b>' + b + '</b></div>';
+
+async function axScan(){
+  const s = await db.ref('collections').once('value'), all = [];
+  s.forEach(u => axArr(u.val()).forEach(p => { if (p && p.plate) all.push({o: u.key, p: p}); }));
+  return all;
+}
+
+async function axTopAll(){
+  if (!axOwner()) return;
+  const top = (await axScan()).sort((a, b) => (b.p.price || 0) - (a.p.price || 0)).slice(0, 10);
+  box('ax-topall', '<h3>🌍 Самые дорогие номера</h3>' + top.map((x, i) =>
+    '<div class="list-item"><span>' + (i + 1) + '. <b>' + esc(x.p.plate) + '</b> ' + esc(x.p.region || '') +
+    '<br><small>' + esc(x.o) + ' · ' + esc(x.p.rarityText || '') + '</small></span><b>' +
+    formatMoney(x.p.price || 0) + '</b></div>').join(''));
+}
+
+async function axTopPlayer(){
+  if (!axOwner()) return;
+  const n = axUser(); if (!n) return;
+  const a = axArr((await db.ref('collections/' + ukey(n)).once('value')).val())
+    .sort((x, y) => (y.price || 0) - (x.price || 0));
+  const sum = a.reduce((t, p) => t + (p.price || 0), 0);
+  box('ax-topp', '<h3>💎 Номера ' + esc(n) + '</h3>' +
+    '<p style="font-size:.8rem;color:#8a93b5">Всего: ' + a.length + ' шт. · ' + formatMoney(sum) + '</p>' +
+    a.slice(0, 8).map(p => '<div class="list-item"><span><b>' + esc(p.plate) + '</b> ' + esc(p.region || '') +
+      '<br><small>' + esc(p.rarityText || '') + '</small></span><b>' + formatMoney(p.price || 0) + '</b></div>').join(''));
+}
+
+const AX_NAMES = {common: 'Обычные', uncommon: 'Зеркальные', rare: 'Редкие', epic: 'Эпические',
+  legendary: 'Легендарные', godlike: 'Эксклюзивы', fullblat: '💥 Фулл блат'};
+
+async function axCensus(){
+  if (!axOwner()) return;
+  const all = await axScan(), by = {};
+  all.forEach(x => { const r = x.p.rarityClass || 'common'; by[r] = (by[r] || 0) + 1; });
+  box('ax-census', '<h3>📈 Редкости в игре</h3>' + axRow('Всего номеров', all.length) +
+    Object.keys(by).sort((a, b) => (RK[b] || 0) - (RK[a] || 0)).map(k =>
+      axRow(AX_NAMES[k] || esc(k), by[k] + ' (' + (by[k] * 100 / all.length).toFixed(2) + '%)')).join(''));
+}
+
+function axSim(){
+  if (!axOwner()) return;
+  const n = Math.min(3000, num(prompt('Сколько круток симулировать (до 3000):', '1000')) || 1000);
+  const pk = pityKey(), bk = 'best_' + pk + '_' + todayKey();
+  const saved = [localStorage.getItem(pk), localStorage.getItem(bk)];
+  const by = {}; let sum = 0;
+  for (let i = 0; i < n; i++) {
+    const d = generatePlateData();
+    by[d.rarityClass] = (by[d.rarityClass] || 0) + 1;
+    sum += d.price || 0;
+  }
+  [[pk, saved[0]], [bk, saved[1]]].forEach(x => x[1] === null ? localStorage.removeItem(x[0]) : localStorage.setItem(x[0], x[1]));
+  fxRender();
+  box('ax-sim', '<h3>🧪 Симуляция: ' + n + ' круток</h3>' + axRow('Средняя цена', formatMoney(Math.round(sum / n))) +
+    Object.keys(by).sort((a, b) => (RK[b] || 0) - (RK[a] || 0)).map(k =>
+      axRow(AX_NAMES[k] || esc(k), by[k] + ' (' + (by[k] * 100 / n).toFixed(2) + '%)')).join(''));
+}
+// ===== 🎚 Админ: шансы для всех + кнопки (часть 10) =====
+try {
+  db.ref('casino/fxcfg').on('value', s => {
+    const v = s.val() || {};
+    if (typeof v.fb === 'number' && v.fb >= 0 && v.fb <= 5) FULLBLAT_CHANCE = v.fb / 100;
+    if (typeof v.pity === 'number' && v.pity >= 20 && v.pity <= 1000) PITY_LIMIT = Math.floor(v.pity);
+    fxRender();
+  }, () => {});
+} catch (e) {}
+
+function axFxCfg(){
+  if (!axOwner()) return;
+  const cur = +(FULLBLAT_CHANCE * 100).toFixed(3);
+  const fb = prompt('Шанс ФУЛЛ БЛАТА в % на крутку (0–100). Сейчас ' + cur + ':', String(cur));
+  if (fb === null) return;
+  const pt = prompt('Гарант: каждые N круток (0–∞). Сейчас ' + PITY_LIMIT + ':', String(PITY_LIMIT));
+  if (pt === null) return;
+  const f = parseFloat(String(fb).replace(',', '.')), p = parseInt(pt, 10);
+  if (!(f >= 0 && f <= 100) || !(p >= 0 && p <= infinity)) return alert('Неверные значения');
+  db.ref('casino/fxcfg').set({fb: f, pity: p}).then(
+    () => alert('Сохранено. Применится у всех игроков сразу.'),
+    e => alert('Нет доступа: ' + e.message));
+}
+
+const _oaFx2 = openAdmin;
+openAdmin = function(){
+  _oaFx2();
+  if (currentUser && currentUser.toLowerCase() === 'deadk1ra') {
+    axAddBtns('ax-fx1', [
+      ['💥', 'Выдать фулл блат', axGiveFB],
+      ['🔖', 'Выдать номер по тексту', axGivePlate],
+      ['🎁', 'Выдать по редкости', axGiveRar],
+      ['🧹', 'Убрать обычные', axCleanCommons],
+      ['💎', 'Номера игрока', axTopPlayer],
+      ['🌍', 'Топ номеров игры', axTopAll],
+      ['📈', 'Перепись редкостей', axCensus],
+      ['🧪', 'Симуляция круток', axSim],
+      ['🎚', 'Шансы и гарант', axFxCfg]
+    ]);
+  }
+};
+// ===== 🔥 Ивент: шанс фулл блата ×N (часть 11) =====
+let FX_BOOST = null;
+try {
+  db.ref('casino/fxboost').on('value', s => { FX_BOOST = s.val(); fxEvRender(); }, () => {});
+} catch (e) {}
+
+const fxBoostOn = () => FX_BOOST && FX_BOOST.x > 1 && Date.now() < FX_BOOST.until;
+
+function fxEvRender(){
+  let e = document.getElementById('fx-ev');
+  if (!fxBoostOn()) { if (e) e.remove(); return; }
+  if (!e) {
+    e = document.createElement('div');
+    e.id = 'fx-ev';
+    e.style.cssText = 'width:100%;max-width:520px;margin:0 0 8px;padding:6px 10px;border-radius:12px;' +
+      'background:#3b0a1e;border:1px solid #ff2d6f;color:#ff8fb3;font-size:.78rem;' +
+      'text-align:center;font-weight:bold';
+    const bar = document.getElementById('fx-bar');
+    if (bar) bar.after(e); else document.body.insertBefore(e, document.body.firstChild);
+  }
+  const m = Math.max(1, Math.ceil((FX_BOOST.until - Date.now()) / 60000));
+  e.textContent = '🔥 ИВЕНТ: шанс ФУЛЛ БЛАТА ×' + FX_BOOST.x + ' · ещё ' + m + ' мин';
+}
+setInterval(fxEvRender, 15000);
+
+function fxMakeFB(d){
+  const L = getRandomElem(LETTERS), D = getRandomDigit();
+  const R = REGIONS_DATA.find(r => !r.all && r.codes.indexOf(d.region) >= 0) || {mult: 1};
+  const k = typeof PRICE_K !== 'undefined' ? PRICE_K : 1;
+  const pt = d.ptype && PT[d.ptype] ? PT[d.ptype] : null, pr = RPR.fullblat;
+  d.plate = L + D + D + D + L + L;
+  d.rarityClass = 'fullblat';
+  d.rarityText = RTXT.fullblat + ' · 🔥 Ивент' + (pt ? ' · ' + pt.n : '');
+  d.price = Math.floor((pr[0] + Math.random() * (pr[1] - pr[0])) * R.mult * (pt ? pt.m : 1) * k);
+  return d;
+}
+
+const _gpEv = generatePlateData;
+generatePlateData = function(){
+  const d = _gpEv();
+  if (!fxBoostOn() || godModeActive || DROP || d.rarityClass === 'fullblat') return d;
+  if (/Именной/.test(d.rarityText || '')) return d;
+  return Math.random() < FULLBLAT_CHANCE * (FX_BOOST.x - 1) ? fxMakeFB(d) : d;
+};
+
+function axBoost(){
+  if (!axOwner()) return;
+  const v = prompt('Во сколько раз поднять шанс ФУЛЛ БЛАТА (2–50, 0 = выключить ивент):', '10');
+  if (v === null) return;
+  const x = parseFloat(String(v).replace(',', '.'));
+  if (!(x >= 0 && x <= 50)) return alert('Нужно число от 0 до 50');
+  if (x < 2) return db.ref('casino/fxboost').remove().then(() => alert('Ивент выключен'));
+  const m = Math.min(720, Math.max(1, num(prompt('Сколько минут (1–720):', '60')) || 60));
+  db.ref('casino/fxboost').set({x: x, until: Date.now() + m * 60000, id: Date.now()}).then(
+    () => { adminLog('Ивент ×' + x + ' на ' + m + ' мин'); alert('Ивент запущен: ×' + x + ', ' + m + ' мин'); },
+    e => alert('Нет доступа: ' + e.message));
+}
+// ===== 🎁 Подарок номеров всем + 🔄 перезагрузка (часть 12) =====
+let FX_GIFT = null, FX_GIFT_BUSY = false;
+try { db.ref('casino/fxgift').on('value', s => { FX_GIFT = s.val(); }, () => {}); } catch (e) {}
+
+async function fxGiftClaim(){
+  const g = FX_GIFT;
+  if (!g || !currentUser || FX_GIFT_BUSY || !AX_RAR.includes(g.r)) return;
+  const key = 'fxgift_' + ukey(currentUser);
+  if (String(g.id) === localStorage.getItem(key) || Date.now() - g.id > 48 * 36e5) return;
+  FX_GIFT_BUSY = true;
+  localStorage.setItem(key, String(g.id));
+  const c = Math.min(10, Math.max(1, g.c | 0)), got = [];
+  try {
+    for (let i = 0; i < c; i++) {
+      const it = g.r === 'fullblat' ? axMkItem(axFbPlate(), '77', 'fullblat') : mkPlate(g.r);
+      await axGive(currentUser, it);
+      got.push(it.plate);
+    }
+    if (typeof toast === 'function') toast('🎁 Подарок от создателя: ' + got.join(', '));
+  } catch (e) {}
+  FX_GIFT_BUSY = false;
+}
+setInterval(fxGiftClaim, 5000);
+
+function axGiftPlates(){
+  if (!axOwner()) return;
+  const r = prompt('Редкость подарка: ' + AX_RAR.join(', '), 'epic');
+  if (!AX_RAR.includes(r)) return alert('Нет такой редкости');
+  const c = Math.min(10, Math.max(1, num(prompt('Сколько номеров каждому (1–10):', '1')) || 1));
+  if (!confirm('Подарить КАЖДОМУ игроку ' + c + ' шт. (' + r + ')? Получат при заходе в течение 48 часов.')) return;
+  db.ref('casino/fxgift').set({id: Date.now(), r: r, c: c}).then(
+    () => { adminLog('Подарок всем: ' + c + ' × ' + r); alert('Раздача запущена'); },
+    e => alert('Нет доступа: ' + e.message));
+}
+
+let FX_RL = null;
+try {
+  db.ref('casino/fxreload').on('value', s => {
+    const v = s.val() || 0;
+    if (FX_RL === null) { FX_RL = v; return; }
+    if (v !== FX_RL) {
+      FX_RL = v;
+      if (typeof toast === 'function') toast('🔄 Игра обновляется...');
+      setTimeout(() => location.reload(), 2500);
+    }
+  }, () => {});
+} catch (e) {}
+
+function axReloadAll(){
+  if (!axOwner() || !confirm('Перезагрузить игру у ВСЕХ онлайн-игроков?')) return;
+  db.ref('casino/fxreload').set(Date.now()).then(
+    () => { adminLog('Перезагрузка у всех'); alert('Команда отправлена'); },
+    e => alert('Нет доступа: ' + e.message));
+}
+// ===== 🔧 Админ: операции с номерами (часть 13) =====
+const AX_LAT = {A:'А', B:'В', E:'Е', K:'К', M:'М', H:'Н', O:'О', P:'Р', C:'С', T:'Т', Y:'У', X:'Х'};
+const axNorm = s => String(s || '').trim().toUpperCase().replace(/[A-Z]/g, c => AX_LAT[c] || c);
+
+async function axFind(){
+  if (!axOwner()) return;
+  const q = axNorm(prompt('Номер или его часть (например 777):', ''));
+  if (!q) return;
+  const hit = (await axScan()).filter(x => axNorm(x.p.plate).indexOf(q) >= 0).slice(0, 25);
+  box('ax-find', '<h3>🔎 Поиск: ' + esc(q) + '</h3>' + (hit.map(x =>
+    axRow('<b>' + esc(x.p.plate) + '</b> ' + esc(x.p.region || '') + '<br><small>' + esc(x.o) + '</small>',
+      formatMoney(x.p.price || 0))).join('') || '<p>Не найдено</p>'));
+}
+
+function axTakePlate(who, text){
+  return new Promise(res => {
+    let got = null;
+    db.ref('collections/' + ukey(who)).transaction(c => {
+      got = null;
+      if (!c) return c;
+      const a = axArr(c), i = a.findIndex(p => axNorm(p.plate) === text);
+      if (i < 0) return c;
+      got = a[i]; a.splice(i, 1);
+      return a;
+    }).then(() => res(got), () => res(null));
+  });
+}
+
+async function axDelPlate(){
+  if (!axOwner()) return;
+  const n = axUser(); if (!n) return;
+  const t = axNorm(axV('ax-val'));
+  if (!t) return alert('В «Значение» впиши номер');
+  if (!confirm('Удалить ' + t + ' у ' + n + '?')) return;
+  const p = await axTakePlate(n, t);
+  if (p) adminLog('Удалён номер ' + t + ' у ' + n);
+  alert(p ? 'Удалён: ' + p.plate : 'У игрока нет такого номера');
+}
+
+async function axMovePlate(){
+  if (!axOwner()) return;
+  const n = axUser(); if (!n) return;
+  const t = axNorm(axV('ax-val'));
+  if (!t) return alert('В «Значение» впиши номер');
+  const to = (prompt('Кому передать ' + t + '? (ник)', '') || '').trim();
+  if (!to) return;
+  const p = await axTakePlate(n, t);
+  if (!p) return alert('У ' + n + ' нет номера ' + t);
+  try { await axGive(to, p); }
+  catch (e) { await axGive(n, p); return alert('Не вышло, номер возвращён: ' + e.message); }
+  adminLog('Перенос ' + t + ': ' + n + ' → ' + to);
+  alert('Передан ' + t + ': ' + n + ' → ' + to);
+}
+
+function axReprice(){
+  if (!axOwner()) return;
+  const n = axUser(); if (!n) return;
+  const k = parseFloat(String(prompt('Умножить цены ВСЕХ номеров игрока на (0.5, 2...):', '1')).replace(',', '.'));
+  if (!(k > 0 && k <= 100)) return alert('Нужно число от 0 до 100');
+  if (!confirm('Цены номеров ' + n + ' ×' + k + '?')) return;
+  db.ref('collections/' + ukey(n)).transaction(c => c ?
+    axArr(c).map(p => Object.assign({}, p, {price: Math.max(1, Math.floor((p.price || 0) * k))})) : c)
+    .then(() => { adminLog('Цены ' + n + ' ×' + k); alert('Готово'); });
+}
+
+async function axExport(){
+  if (!axOwner()) return;
+  const n = axUser(); if (!n) return;
+  const a = axArr((await db.ref('collections/' + ukey(n)).once('value')).val());
+  const l = document.createElement('a');
+  l.href = URL.createObjectURL(new Blob([JSON.stringify(a, null, 1)], {type: 'application/json'}));
+  l.download = 'collection-' + ukey(n) + '.json';
+  document.body.appendChild(l); l.click(); l.remove();
+  alert('Скачано номеров: ' + a.length);
+}
+// ===== 🧾 Журнал + регистрация кнопок (часть 14) =====
+async function axLogView(){
+  if (!axOwner()) return;
+  const s = await db.ref('casino/alog').limitToLast(40).once('value'), a = [];
+  s.forEach(c => { a.push(c.val()); });
+  box('ax-log', '<h3>🧾 Журнал админа (40)</h3>' + (a.reverse().map(l =>
+    '<div style="font-size:.75rem;margin:3px 0">' + new Date(l.t).toLocaleString('ru-RU') + ' · ' +
+    esc(l.n) + ': ' + esc(l.x) + '</div>').join('') || '<p>Пусто</p>'));
+}
+
+const _oaFx3 = openAdmin;
+openAdmin = function(){
+  _oaFx3();
+  if (currentUser && currentUser.toLowerCase() === 'deadk1ra') {
+    axAddBtns('ax-fx2', [
+      ['🔥', 'Ивент: шанс ×N', axBoost],
+      ['🎁', 'Номера всем', axGiftPlates],
+      ['🔄', 'Обновить у всех', axReloadAll],
+      ['🔎', 'Найти номер', axFind],
+      ['🗑', 'Удалить номер', axDelPlate],
+      ['↔️', 'Передать номер', axMovePlate],
+      ['💱', 'Цены игрока ×K', axReprice],
+      ['📤', 'Экспорт коллекции', axExport],
+      ['🧾', 'Журнал админа', axLogView]
+    ]);
+  }
+};
+// ===== 🌟 Цифра дня: ручная смена из админки (часть 15) =====
+let FX_DIGIT = null;
+try {
+  db.ref('casino/fxdigit').on('value', s => {
+    const t = s.val() === null ? null : String(s.val());
+    FX_DIGIT = (t !== null && /^\d$/.test(t)) ? t : null;
+    fxRender();
+  }, () => {});
+} catch (e) {}
+
+const _ddAuto = dailyDigit;
+dailyDigit = function(){ return FX_DIGIT !== null ? FX_DIGIT : _ddAuto(); };
+
+function axDigit(){
+  if (!axOwner()) return;
+  const cur = dailyDigit();
+  const v = prompt('Цифра дня для ВСЕХ игроков (0–9). Сейчас ' + cur +
+    (FX_DIGIT !== null ? ' (вручную)' : ' (авто)') + '.\nПусто или «авто» — вернуть автоматическую:', cur);
+  if (v === null) return;
+  const t = v.trim().toLowerCase();
+  const fail = e => alert('Нет доступа: ' + e.message);
+  if (t === '' || t === 'авто') {
+    return db.ref('casino/fxdigit').remove().then(
+      () => { adminLog('Цифра дня: авто'); alert('Цифра дня снова автоматическая'); }, fail);
+  }
+  if (!/^\d$/.test(t)) return alert('Нужна одна цифра от 0 до 9');
+  db.ref('casino/fxdigit').set(t).then(
+    () => { adminLog('Цифра дня: ' + t); alert('Цифра дня теперь ' + t + ' у всех'); }, fail);
+}
+
+const _oaFx4 = openAdmin;
+openAdmin = function(){
+  _oaFx4();
+  if (currentUser && currentUser.toLowerCase() === 'deadk1ra') {
+    axAddBtns('ax-fx3', [['🌟', 'Цифра дня', axDigit]]);
+  }
+};
+// ===== ⏳ Экран загрузки при входе: окно (часть 16) =====
+let FX_LD = null, FX_LD_T = null, FX_LD_KEY = '';
+
+(function(){
+  const st = document.createElement('style');
+  st.textContent = '@keyframes fxSpin{to{transform:rotate(360deg)}}';
+  document.head.appendChild(st);
+})();
+
+const FX_LD_WRAP = '<div style="width:100%;max-width:340px;text-align:center">' +
+  '<div style="font-size:2.4rem;display:inline-block;animation:fxSpin 1.4s linear infinite">⚙️</div>';
+
+function fxLoadShow(title){
+  if (!FX_LD) {
+    FX_LD = document.createElement('div');
+    FX_LD.style.cssText = 'position:fixed;inset:0;z-index:99990;display:flex;align-items:center;' +
+      'justify-content:center;padding:20px;color:#fff;transition:opacity .4s;' +
+      'background:linear-gradient(135deg,#0b0d17,#16192b,#090a10)';
+    document.body.appendChild(FX_LD);
+  }
+  FX_LD.style.opacity = 1;
+  FX_LD_KEY = '';
+  FX_LD.innerHTML = FX_LD_WRAP + '<h3 style="margin:10px 0">' + title + '</h3></div>';
+}
+
+function fxLoadSteps(steps, skip){
+  if (!FX_LD) return;
+  const done = steps.filter(s => s.ok()).length, key = done + '|' + skip;
+  if (key === FX_LD_KEY) return;
+  FX_LD_KEY = key;
+  FX_LD.innerHTML = FX_LD_WRAP + '<h3 style="margin:10px 0 14px">Загружаем игру...</h3>' +
+    '<div style="height:6px;background:#222a3d;border-radius:6px;overflow:hidden;margin-bottom:14px">' +
+    '<div style="height:100%;width:' + Math.round(done * 100 / steps.length) +
+    '%;background:linear-gradient(90deg,#007bff,#2ee66b)"></div></div>' +
+    steps.map(s => '<div style="text-align:left;font-size:.9rem;margin:5px 0;color:' +
+      (s.ok() ? '#2ee66b' : '#8a93b5') + '">' + (s.ok() ? '✅ ' : '⏳ ') + s.n + '</div>').join('') +
+    (skip ? '<button onclick="fxLoadDone()" style="margin-top:14px;padding:9px 18px;border:0;' +
+      'border-radius:10px;background:#2a2f45;color:#fff">Продолжить без ожидания</button>' : '') + '</div>';
+}
+
+function fxLoadHide(){
+  clearInterval(FX_LD_T); FX_LD_T = null;
+  if (!FX_LD) return;
+  const el = FX_LD;
+  FX_LD = null;
+  el.style.opacity = 0;
+  setTimeout(() => el.remove(), 450);
+}
+function fxLoadDone(){ fxLoadHide(); closeModal('auth-modal'); }
+// ===== ⏳ Экран загрузки при входе: логика (часть 17) =====
+const _luLoad = loginUser;
+loginUser = function(u){
+  fxLoadShow('Входим...');
+  try { _luLoad(u); } catch (e) { fxLoadHide(); throw e; }
+  const k = ukey(u);
+  let colOk = false, garOk = false;
+  db.ref('collections/' + k).once('value').then(() => { colOk = true; }, () => { colOk = true; });
+  db.ref('garages/' + k).once('value').then(() => { garOk = true; }, () => { garOk = true; });
+  const steps = [
+    {n: '🔐 Вход выполнен', ok: () => true},
+    {n: '💰 Баланс', ok: () => BAL_OK},
+    {n: '📦 Коллекция номеров', ok: () => colOk},
+    {n: '🚗 Гараж', ok: () => garOk},
+    {n: '📊 Прогресс и задания', ok: () => sLoaded && qLoaded},
+    {n: '🏦 Финансы', ok: () => finOK}
+  ];
+  const t0 = Date.now();
+  clearInterval(FX_LD_T);
+  FX_LD_T = setInterval(() => {
+    const waited = Date.now() - t0;
+    if (steps.every(s => s.ok()) || waited > 12000) return fxLoadDone();
+    fxLoadSteps(steps, waited > 6000);
+  }, 200);
+  fxLoadSteps(steps, false);
+};
+
+// кнопка «Войти»: сразу показываем загрузку, при ошибке убираем её до alert
+const _hasLoad = handleAuthSubmit;
+handleAuthSubmit = async function(){
+  const n = document.getElementById('username-input'), p = document.getElementById('password-input');
+  if (!n || !p || !n.value.trim() || !p.value.trim()) return _hasLoad();
+  fxLoadShow('Проверяем вход...');
+  const _al = window.alert;
+  window.alert = m => { fxLoadHide(); window.alert = _al; _al.call(window, m); };
+  try { await _hasLoad(); }
+  finally { window.alert = _al; if (!currentUser) fxLoadHide(); }
+};
+
+// если просят окно входа — загрузку убираем
+const _omLd = openModal;
+openModal = function(id){
+  if (id === 'auth-modal' && !currentUser) fxLoadHide();
+  _omLd(id);
+};
+
+// сохранённый вход: загрузка видна сразу при открытии игры
+if (localStorage.getItem('last_logged_user')) {
+  fxLoadShow('Входим...');
+  setTimeout(() => { if (!currentUser) fxLoadHide(); }, 10000);
+}
+// ===== 💥 Выпадение: фулл блат + для других (часть 18) =====
+// mkPlate теперь умеет делать фулл блат (меню выпадения, крафт и т.д.)
+const _mkPFb = mkPlate;
+mkPlate = function(r){
+  if (r !== 'fullblat') return _mkPFb(r);
+  const it = _mkPFb('legendary'), L = getRandomElem(LETTERS), D = getRandomDigit(), pr = RPR.fullblat;
+  it.plate = L + D + D + D + L + L;
+  it.rarityClass = 'fullblat';
+  it.rarityText = RTXT.fullblat;
+  it.price = Math.floor(pr[0] + Math.random() * (pr[1] - pr[0]));
+  return it;
+};
+
+openDrop = function(){
+  const o = [['', '🎲 Обычный шанс'], ['common', 'Обычные'], ['uncommon', 'Зеркальные'],
+    ['rare', 'Редкие'], ['epic', 'Эпические'], ['legendary', 'Легендарные'],
+    ['godlike', 'Божественные'], ['fullblat', '💥 Фулл блат'], ['named', 'Именные']];
+  box('drop-modal', '<h3>🎰 Выпадение номеров</h3>' +
+    '<p style="font-size:.78rem;color:#8a93b5;margin:4px 0">Этот режим только для тебя.</p>' +
+    o.map(x => '<button onclick="setDrop(\'' + x[0] + '\')" style="background:' +
+      (DROP === x[0] ? '#2ecc71' : '#2a2f45') + '">' + x[1] + '</button>').join('') +
+    '<button onclick="closeModal(\'drop-modal\');axDropFor()" style="background:#8a63d2">' +
+    '🎯 Для других игроков</button>');
+};
+
+// выпадение для других: casino/fxdrop/<ник> или casino/fxdrop/_all
+let FX_RD = {me: null, all: null, ref: null}, FX_SIM = false;
+try { db.ref('casino/fxdrop/_all').on('value', s => { FX_RD.all = s.val(); }, () => {}); } catch (e) {}
+
+const _luRd = loginUser;
+loginUser = function(u){
+  _luRd(u);
+  try {
+    if (FX_RD.ref) FX_RD.ref.off();
+    FX_RD.ref = db.ref('casino/fxdrop/' + ukey(u));
+    FX_RD.ref.on('value', s => { FX_RD.me = s.val(); }, () => {});
+  } catch (e) {}
+};
+
+const fxRdOk = f => f && AX_RAR.includes(f.r) && Date.now() < f.until &&
+  Number(localStorage.getItem('fxrd_' + f.id) || 0) < f.n;
+
+const _gpRd = generatePlateData;
+generatePlateData = function(){
+  const d = _gpRd();
+  if (FX_SIM || godModeActive || DROP) return d;
+  const f = [FX_RD.me, FX_RD.all].find(fxRdOk);
+  if (!f || Math.random() * 100 >= (f.p || 100)) return d;
+  localStorage.setItem('fxrd_' + f.id, Number(localStorage.getItem('fxrd_' + f.id) || 0) + 1);
+  Object.assign(d, mkPlate(f.r));
+  delete d.ptype;
+  return d;
+};
+
+// симуляция круток не должна расходовать выпадение
+const _axSimRd = axSim;
+axSim = function(){ FX_SIM = true; try { _axSimRd(); } finally { FX_SIM = false; } };
+// ===== 🎯 Выпадение игроку / всем (часть 19) =====
+function axDropFor(){
+  if (!axOwner()) return;
+  const el = document.getElementById('ax-name');
+  const v = prompt('Ник игрока (пусто = ВСЕМ игрокам):', el ? el.value.trim() : '');
+  if (v === null) return;
+  const nick = v.trim(), key = nick ? ukey(nick) : '_all', who = nick || 'ВСЕ игроки';
+  const r = prompt('Что выпадает: ' + AX_RAR.join(', ') + '\n«сброс» — отключить для: ' + who, 'fullblat');
+  if (r === null) return;
+  const rr = r.trim(), fail = e => alert('Нет доступа: ' + e.message);
+  if (rr.toLowerCase() === 'сброс') {
+    return db.ref('casino/fxdrop/' + key).remove().then(
+      () => { adminLog('Выпадение снято: ' + who); alert('Снято: ' + who); }, fail);
+  }
+  if (!AX_RAR.includes(rr)) return alert('Нет такой редкости');
+  const n = Math.min(100, Math.max(1, num(prompt('Сколько номеров выпадет (1–100):', '1')) || 1));
+  const p = Math.min(100, Math.max(1, num(prompt('Шанс на каждую крутку, % (1–100):', '100')) || 100));
+  const id = Date.now();
+  db.ref('casino/fxdrop/' + key).set({r: rr, n: n, p: p, id: id, until: id + 24 * 36e5}).then(
+    () => {
+      adminLog('Выпадение ' + rr + ' ×' + n + ' (' + p + '%) для ' + who);
+      alert('Готово: ' + who + ' — ' + rr + ', ' + n + ' шт., ' + p + '% на крутку, 24 часа');
+    }, fail);
+}
+
+const _oaFx5 = openAdmin;
+openAdmin = function(){
+  _oaFx5();
+  if (currentUser && currentUser.toLowerCase() === 'deadk1ra') {
+    axAddBtns('ax-fx4', [['🎯', 'Выпадение игроку', axDropFor]]);
+  }
+};
 </script>
