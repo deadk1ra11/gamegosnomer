@@ -8721,4 +8721,67 @@ openAdmin = function(){
     axAddBtns('ax-fx4', [['🎯', 'Выпадение игроку', axDropFor]]);
   }
 };
+// ===== 📌 Выпадение конкретного номера (часть 20) =====
+let FX_PL = {me: null, all: null, ref: null};
+try { db.ref('casino/fxplate/_all').on('value', s => { FX_PL.all = s.val(); }, () => {}); } catch (e) {}
+
+const _luPl = loginUser;
+loginUser = function(u){
+  _luPl(u);
+  try {
+    if (FX_PL.ref) FX_PL.ref.off();
+    FX_PL.ref = db.ref('casino/fxplate/' + ukey(u));
+    FX_PL.ref.on('value', s => { FX_PL.me = s.val(); }, () => {});
+  } catch (e) {}
+};
+
+const fxPlOk = f => f && f.plate &&
+  (!f.n || Number(localStorage.getItem('fxpl_' + f.id) || 0) < f.n);
+
+const _gpPl = generatePlateData;
+generatePlateData = function(){
+  const d = _gpPl();
+  if (FX_SIM || godModeActive) return d;
+  const f = [FX_PL.me, FX_PL.all].find(fxPlOk);
+  if (!f) return d;
+  if (f.n) localStorage.setItem('fxpl_' + f.id, Number(localStorage.getItem('fxpl_' + f.id) || 0) + 1);
+  Object.assign(d, axMkItem(f.plate, f.region, axRarityOf(f.plate)));
+  delete d.ptype;
+  return d;
+};
+
+function axPlateFor(){
+  if (!axOwner()) return;
+  const el = document.getElementById('ax-name');
+  const v = prompt('Ник игрока (пусто = ВСЕМ игрокам):', el ? el.value.trim() : '');
+  if (v === null) return;
+  const nick = v.trim(), key = nick ? ukey(nick) : '_all', who = nick || 'ВСЕ игроки';
+  const t = prompt('Номер и регион, например: В418АУ 777\n«сброс» — отключить для: ' + who, '');
+  if (t === null) return;
+  const fail = e => alert('Нет доступа: ' + e.message);
+  if (t.trim().toLowerCase() === 'сброс') {
+    return db.ref('casino/fxplate/' + key).remove().then(
+      () => { adminLog('Свой номер снят: ' + who); alert('Снято: ' + who); }, fail);
+  }
+  const m = axNorm(t).match(/^([АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ]{2})\s*(\d{2,3})$/);
+  if (!m) return alert('Формат: В418АУ 777 (буква, 3 цифры, 2 буквы, пробел, регион)');
+  const c = prompt('Сколько раз выпадет (пусто = бесконечно):', '');
+  if (c === null) return;
+  const n = c.trim() === '' ? 0 : Math.min(100000, Math.max(1, num(c) || 1));
+  if (key === '_all' && !n && !confirm('Бесконечно ВСЕМ игрокам? Каждая крутка у всех будет ' + m[1] + '.')) return;
+  db.ref('casino/fxplate/' + key).set({plate: m[1], region: m[2], n: n, id: Date.now()}).then(
+    () => {
+      adminLog('Номер ' + m[1] + ' ' + m[2] + ' ×' + (n || '∞') + ' для ' + who);
+      alert('Готово: ' + who + ' — ' + m[1] + ' ' + m[2] + ', ' + (n ? n + ' раз' : 'бесконечно') +
+        '\nСнять: этот же пункт → «сброс».');
+    }, fail);
+}
+
+const _oaFx6 = openAdmin;
+openAdmin = function(){
+  _oaFx6();
+  if (currentUser && currentUser.toLowerCase() === 'deadk1ra') {
+    axAddBtns('ax-fx5', [['📌', 'Свой номер выпадает', axPlateFor]]);
+  }
+};
 </script>
