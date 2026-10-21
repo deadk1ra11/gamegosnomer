@@ -9267,4 +9267,291 @@ trAdd(`
 ПЕРЕВОД ДЕНЕГ ДРУГУ|SEND MONEY TO A FRIEND|ПЕРЕКАЗ ГРОШЕЙ ДРУГУ|ДОСҚА АҚША АУДАРУ
 ПРОМОКОД|PROMO CODE|ПРОМОКОД|ПРОМОКОД
 `);
+// ===== 🪪 Рамки и текстура номеров: стили (часть 26) =====
+const FX_NOISE = "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .6 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>\")";
+
+Object.assign(FRAME_TYPES, {
+  wood:     {name: 'Деревянная рамка',    price: 20000,   bonusLuck: 0.01},
+  camo:     {name: 'Камуфляжная рамка',   price: 25000,   bonusLuck: 0.02},
+  chrome:   {name: 'Хромированная рамка', price: 30000,   bonusLuck: 0.03},
+  copper:   {name: 'Медная рамка',        price: 80000,   bonusLuck: 0.05},
+  platinum: {name: 'Платиновая рамка',    price: 120000,  bonusLuck: 0.08},
+  ice:      {name: 'Ледяная рамка',       price: 200000,  bonusLuck: 0.12},
+  neon:     {name: 'Неоновая рамка',      price: 300000,  bonusLuck: 0.15},
+  fire:     {name: 'Огненная рамка',      price: 400000,  bonusLuck: 0.18},
+  royal:    {name: 'Королевская рамка',   price: 600000,  bonusLuck: 0.22},
+  rainbow:  {name: 'Радужная рамка',      price: 1000000, bonusLuck: 0.28},
+  diamond:  {name: 'Бриллиантовая рамка', price: 2500000, bonusLuck: 0.35}
+});
+Object.assign(PLATE_STYLES, {
+  retro:    {name: 'Ретро (ГОСТ 80-х)',          price: 15000},
+  black:    {name: 'Чёрная глянцевая пластина', price: 60000},
+  goldface: {name: 'Золотая пластина',          price: 200000}
+});
+
+(function(){
+  const st = document.createElement('style');
+  st.textContent = `
+.number-plate::before{content:'';position:absolute;inset:0;border-radius:inherit;pointer-events:none;background-image:${FX_NOISE};opacity:.3;mix-blend-mode:multiply}
+.number-plate::after{content:'';position:absolute;inset:4px;border-radius:6px;pointer-events:none;border:2px solid rgba(0,0,0,.5);box-shadow:inset 0 0 0 1px rgba(255,255,255,.5),0 0 0 1px rgba(255,255,255,.3);background:linear-gradient(115deg,transparent 28%,rgba(255,255,255,.45) 47%,transparent 66%)}
+.number-plate .plate-main,.number-plate .plate-region{position:relative;z-index:1}
+.number-plate .plate-main{text-shadow:0 1px 0 rgba(255,255,255,.85),0 -1px 0 rgba(0,0,0,.55),1px 2px 2px rgba(0,0,0,.35)}
+.fxp{display:inline-block;position:relative;padding:3px;border-radius:9px;line-height:1;vertical-align:middle;background:#15171c;box-shadow:0 2px 7px rgba(0,0,0,.5)}
+.fxp-in{position:relative;display:flex;align-items:center;gap:6px;padding:3px 8px 3px 9px;border-radius:6px;overflow:hidden;font:700 17px 'Roboto Condensed','Arial Narrow',sans-serif;color:#0b0b0d;background:linear-gradient(180deg,#f3f4f6,#c9cdd3 55%,#e1e4e8);text-shadow:0 1px 0 rgba(255,255,255,.85),0 -1px 0 rgba(0,0,0,.45);box-shadow:inset 0 0 0 1.5px rgba(0,0,0,.55),inset 0 0 0 2.5px rgba(255,255,255,.45)}
+.fxp-in::before{content:'';position:absolute;inset:0;pointer-events:none;background-image:${FX_NOISE};opacity:.3;mix-blend-mode:multiply}
+.fxp-in::after{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(115deg,transparent 28%,rgba(255,255,255,.5) 47%,transparent 66%)}
+.fxp-n,.fxp-rg{position:relative;z-index:1}
+.fxp-rg{display:flex;flex-direction:column;align-items:center;border-left:2px solid currentColor;padding-left:6px}
+.fxp-rg b{font-size:.8em;line-height:1}
+.fxp-rg em{font-style:normal;font-size:.38em;display:flex;align-items:center;gap:2px;letter-spacing:.5px}
+.fxp-fl{display:inline-block;width:9px;height:6px;border:1px solid rgba(0,0,0,.45);background:linear-gradient(#fff 33%,#0033a0 33% 66%,#da291c 66%)}
+.fxp-big{padding:5px;border-radius:12px}
+.fxp-big .fxp-in{font-size:2.2rem;padding:6px 14px 6px 16px;gap:10px}
+.fxs-retro{background:linear-gradient(180deg,#f7f2cf,#d8cd92 55%,#ebe3b4)}
+.fxs-black{color:#f4f4f4;background:linear-gradient(180deg,#2c2e34,#0d0e11 55%,#1f2127);text-shadow:0 1px 0 #000,0 0 7px rgba(255,255,255,.28)}
+.fxs-goldface{color:#3a2900;background:linear-gradient(180deg,#fff0a6,#dfa81b 55%,#f8d964);text-shadow:0 1px 0 rgba(255,255,255,.6)}
+.fxs-transit{color:#b3121e;background:linear-gradient(180deg,#fff,#e8e8ea)}
+.fxt-taxi{background:linear-gradient(180deg,#ffe45c,#f2c200 55%,#ffd633)}
+.fxt-police,.fxt-diplo,.fxt-army{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.fxt-police{background:linear-gradient(180deg,#3f7bd6,#1a4fa3 55%,#2a62bd)}
+.fxt-diplo{background:linear-gradient(180deg,#e04545,#b01818 55%,#cc2c2c)}
+.fxt-army{background:linear-gradient(180deg,#4a5a43,#2a3626 55%,#3a4834)}
+.fxf-carbon{background:linear-gradient(135deg,rgba(255,255,255,.09) 25%,transparent 25% 50%,rgba(255,255,255,.09) 50% 75%,transparent 75%),#101013;background-size:6px 6px}
+.fxf-gold{background:linear-gradient(135deg,#fff3a8,#e6b422 30%,#fff1a0 50%,#b8860b 72%,#ffe27a);box-shadow:0 0 12px rgba(255,215,0,.65)}
+.fxf-police{background:repeating-linear-gradient(90deg,#0a3a8c 0 6px,#fff 6px 9px,#c8102e 9px 12px,#fff 12px 15px);box-shadow:0 0 12px rgba(0,51,160,.7)}
+.fxf-chrome{background:linear-gradient(135deg,#f5f7fa,#9aa3ad 25%,#fff 45%,#6c747d 65%,#e8ecf0)}
+.fxf-wood{background:repeating-linear-gradient(95deg,#6b4423 0 4px,#8a5a2b 4px 7px,#5a3818 7px 10px)}
+.fxf-camo{background:radial-gradient(circle at 20% 30%,#4b5320 0 30%,transparent 31%),radial-gradient(circle at 70% 60%,#2f3a1c 0 28%,transparent 29%),radial-gradient(circle at 45% 90%,#7b6f3a 0 25%,transparent 26%),#3a4426}
+.fxf-copper{background:linear-gradient(135deg,#f0b27a,#b8631f 35%,#e8a26b 55%,#7a3a10);box-shadow:0 0 10px rgba(184,99,31,.6)}
+.fxf-platinum{background:linear-gradient(135deg,#e5e4e2,#b9c0c8 40%,#f7f9fb 55%,#a8aeb5);box-shadow:0 0 10px rgba(200,210,225,.6)}
+.fxf-ice{background:linear-gradient(135deg,#e8f9ff,#8fd3ff 35%,#fff 50%,#6bb8f0 70%,#d6f3ff);box-shadow:0 0 14px rgba(120,210,255,.8)}
+.fxf-neon{background:#0b0b12;animation:fxNeon 2.4s linear infinite}
+.fxf-fire{background:linear-gradient(0deg,#7a0000,#ff3d00 40%,#ffb300 75%,#fff176);background-size:100% 300%;animation:fxFire 1.1s ease-in-out infinite alternate;box-shadow:0 0 16px rgba(255,100,0,.8)}
+.fxf-royal{background:linear-gradient(135deg,#3b0a6b,#8a2be2 35%,#ffd700 50%,#8a2be2 65%,#3b0a6b);box-shadow:0 0 14px rgba(138,43,226,.8)}
+.fxf-rainbow{background:linear-gradient(90deg,#f33,#fa0,#ee3,#3d3,#3ee,#36f,#d3f,#f33);background-size:300% 100%;animation:fxRb 4s linear infinite}
+.fxf-diamond{background:conic-gradient(from 20deg,#fff,#b8f1ff,#ffd6f6,#fff,#c9ffe2,#b8c8ff,#fff);box-shadow:0 0 16px rgba(190,240,255,.9);animation:fxDia 2s ease-in-out infinite alternate}
+@keyframes fxNeon{0%,100%{box-shadow:0 0 6px #0ff,0 0 16px #0ff,inset 0 0 6px #0ff}50%{box-shadow:0 0 6px #f0f,0 0 16px #f0f,inset 0 0 6px #f0f}}
+@keyframes fxFire{to{background-position:0 100%}}
+@keyframes fxRb{to{background-position:300% 0}}
+@keyframes fxDia{to{filter:brightness(1.25) saturate(1.3)}}
+@media (prefers-reduced-motion:reduce){.fxp{animation:none!important}}
+`;
+  document.head.appendChild(st);
+})();
+// ===== 🪪 Рамки: отрисовка и тюнинг (часть 27) =====
+function fxPlate(p, big){
+  p = p || {};
+  const st = PLATE_STYLES[p.style] ? p.style : 'standard';
+  const fr = FRAME_TYPES[p.frame] ? p.frame : 'standard';
+  const fl = st === 'standard' && !p.ptype ? '<i class="fxp-fl"></i>' : '';
+  return '<span class="fxp fxf-' + fr + (big ? ' fxp-big' : '') + '"><span class="fxp-in fxs-' + st +
+    (p.ptype ? ' fxt-' + p.ptype : '') + '"><span class="fxp-n">' + esc(p.plate || '') +
+    '</span><span class="fxp-rg"><b>' + esc(p.region || '') + '</b><em>RUS' + fl + '</em></span></span></span>';
+}
+miniPlate = function(p){ return fxPlate(p); };
+
+const fxFmt = n => Number(n).toLocaleString('ru-RU').replace(/[\u00a0\u202f]/g, ' ');
+const fxOpts = o => Object.keys(o).sort((a, b) => o[a].price - o[b].price).map(k =>
+  '<option value="' + k + '">' + o[k].name + ' (' + (o[k].price ? fxFmt(o[k].price) + ' ₽' : 'Бесплатно') + ')</option>').join('');
+
+function fxTunePrev(){
+  const ps = document.getElementById('tuning-plate-select'), fs = document.getElementById('tuning-frame-select');
+  const ss = document.getElementById('tuning-style-select'), bx = document.getElementById('fx-tprev');
+  if (!ps || !fs || !ss || !bx) return;
+  const p = playerCollection[parseInt(ps.value)];
+  bx.innerHTML = p ? fxPlate(Object.assign({}, p, {frame: fs.value, style: ss.value}), true) : '';
+}
+
+function fxTuneSync(){
+  const ps = document.getElementById('tuning-plate-select');
+  const fs = document.getElementById('tuning-frame-select'), ss = document.getElementById('tuning-style-select');
+  const p = ps && playerCollection[parseInt(ps.value)];
+  if (p) {
+    fs.value = FRAME_TYPES[p.frame] ? p.frame : 'standard';
+    ss.value = PLATE_STYLES[p.style] ? p.style : 'standard';
+  }
+  fxTunePrev();
+}
+
+function fxTuneInit(){
+  const ps = document.getElementById('tuning-plate-select');
+  const fs = document.getElementById('tuning-frame-select'), ss = document.getElementById('tuning-style-select');
+  if (!ps || !fs || !ss) return;
+  if (!document.getElementById('fx-tprev')) {
+    const d = document.createElement('div');
+    d.id = 'fx-tprev';
+    d.style.cssText = 'margin:14px 0;text-align:center;padding:16px 6px;border-radius:12px;' +
+      'background:radial-gradient(#2b2f46,#10121c);overflow:hidden';
+    ss.parentElement.after(d);
+  }
+  fs.innerHTML = fxOpts(FRAME_TYPES);
+  ss.innerHTML = fxOpts(PLATE_STYLES);
+  if (!ps.dataset.fx) {
+    ps.dataset.fx = '1';
+    ps.addEventListener('change', fxTuneSync);
+    fs.addEventListener('change', fxTunePrev);
+    ss.addEventListener('change', fxTunePrev);
+  }
+  fxTuneSync();
+}
+
+const _omFxT = openModal;
+openModal = function(id){
+  _omFxT(id);
+  if (id === 'tuning-modal') fxTuneInit();
+};
+// ===== 🌍 Названия рамок и стилей (часть 28) =====
+if (typeof trAdd === 'function') trAdd(`
+Деревянная рамка|Wooden frame|Дерев'яна рамка|Ағаш жақтау
+Камуфляжная рамка|Camo frame|Камуфляжна рамка|Камуфляж жақтау
+Хромированная рамка|Chrome frame|Хромована рамка|Хромдалған жақтау
+Медная рамка|Copper frame|Мідна рамка|Мыс жақтау
+Платиновая рамка|Platinum frame|Платинова рамка|Платина жақтау
+Ледяная рамка|Ice frame|Крижана рамка|Мұздай жақтау
+Неоновая рамка|Neon frame|Неонова рамка|Неон жақтау
+Огненная рамка|Fire frame|Вогняна рамка|Отты жақтау
+Королевская рамка|Royal frame|Королівська рамка|Патшалық жақтау
+Радужная рамка|Rainbow frame|Райдужна рамка|Кемпірқосақ жақтау
+Бриллиантовая рамка|Diamond frame|Діамантова рамка|Гауһар жақтау
+Пластиковая рамка|Plastic frame|Пластикова рамка|Пластик жақтау
+Карбоновая рамка|Carbon frame|Карбонова рамка|Карбон жақтау
+Золотая рамка|Gold frame|Золота рамка|Алтын жақтау
+Рамка МВД/ФСБ|Police/FSB frame|Рамка МВС/ФСБ|ІІМ/ҰҚК жақтауы
+Ретро (ГОСТ 80-х)|Retro (80s GOST)|Ретро (ГОСТ 80-х)|Ретро (80-жылдардағы МЕМСТ)
+Чёрная глянцевая пластина|Glossy black plate|Чорна глянцева пластина|Қара жылтыр пластина
+Золотая пластина|Gold plate|Золота пластина|Алтын пластина
+С флагом РФ|With RF flag|З прапором РФ|РФ жалауымен
+Без флага (ГОСТ)|No flag (GOST)|Без прапора (ГОСТ)|Жалаусыз (МЕМСТ)
+Транзитный номер|Transit plate|Транзитний номер|Транзиттік нөмір
+Бесплатно|Free|Безкоштовно|Тегін
+`);
+// ===== ✅ Верификация: галочка у ника (часть 29) =====
+let FX_VER = {};
+const FX_SEAL = (() => {
+  let p = '';
+  for (let i = 0; i < 24; i++) {
+    const a = i * Math.PI / 12, r = i % 2 ? 9.6 : 11.3;
+    p += (i ? 'L' : 'M') + (12 + r * Math.cos(a)).toFixed(2) + ' ' + (12 + r * Math.sin(a)).toFixed(2);
+  }
+  return p + 'Z';
+})();
+
+(function(){
+  const st = document.createElement('style');
+  st.textContent = '.fxv{display:inline-block;width:1.05em;height:1.05em;margin-left:3px;vertical-align:-.16em;' +
+    'cursor:pointer;filter:drop-shadow(0 0 3px rgba(29,155,240,.6))}' +
+    '.fxv.g{filter:drop-shadow(0 0 4px rgba(245,179,1,.75))}';
+  document.head.appendChild(st);
+})();
+
+function fxBadge(level){
+  const s = document.createElement('span');
+  s.className = 'fxv' + (level === 2 ? ' g' : '');
+  const c = level === 2 ? '#f5b301' : '#1d9bf0';
+  s.innerHTML = '<svg viewBox="0 0 24 24" width="100%" height="100%"><path d="' + FX_SEAL + '" fill="' + c +
+    '" stroke="' + c + '" stroke-width="1.2" stroke-linejoin="round"/><path d="M7.2 12.6l3.1 3.1 6.5-6.9" ' +
+    'fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  s.onclick = e => {
+    e.stopPropagation();
+    if (typeof toast === 'function') toast(level === 2 ? '👑 Создатель игры' : '✅ Подтверждённый игрок');
+  };
+  return s;
+}
+
+const FX_PRE = /^(?:(?:Продавец|Игрок|Seller|Player|Продавець|Гравець|Сатушы|Ойыншы):\s*|\d+\.\s*|[\u{1F000}-\u{1FAFF}\u2600-\u27BF\uFE0F\u200D]+\s*)+/u;
+
+function fxLevel(nick){
+  const k = ukey(nick);
+  return k === 'deadk1ra' ? 2 : (Number(FX_VER[k]) || 0);
+}
+
+function fxScanText(n){
+  const v = n.nodeValue;
+  if (!v || v.length > 70 || !/\S/.test(v) || !n.parentNode) return;
+  const ns = n.nextSibling;
+  if (ns && ns.classList && ns.classList.contains('fxv')) return;
+  const pre = (v.match(FX_PRE) || [''])[0], rest = v.slice(pre.length);
+  const m = rest.match(/^([^:·\n]{1,24}?)\s*(?::|·|$)/);
+  const nick = m ? m[1].trim() : '';
+  const lv = nick ? fxLevel(nick) : 0;
+  if (!lv) return;
+  const cut = pre.length + rest.indexOf(nick) + nick.length, tail = v.slice(cut);
+  n.nodeValue = v.slice(0, cut);
+  const b = fxBadge(lv);
+  n.parentNode.insertBefore(b, n.nextSibling);
+  if (tail) n.parentNode.insertBefore(document.createTextNode(tail), b.nextSibling);
+}
+
+const FX_SKIP = /^(SCRIPT|STYLE|TEXTAREA|OPTION|SELECT|INPUT)$/;
+function fxScanNode(root){
+  if (!root) return;
+  if (root.nodeType === 3) { if (root.parentNode && !FX_SKIP.test(root.parentNode.tagName)) fxScanText(root); return; }
+  if (root.nodeType !== 1 || FX_SKIP.test(root.tagName)) return;
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT), list = [];
+  while (w.nextNode()) list.push(w.currentNode);
+  list.forEach(n => { if (n.parentNode && !FX_SKIP.test(n.parentNode.tagName)) fxScanText(n); });
+}
+
+new MutationObserver(ms => {
+  ms.forEach(m => {
+    if (m.type === 'characterData') fxScanNode(m.target);
+    else m.addedNodes.forEach(fxScanNode);
+  });
+}).observe(document.body, {childList: true, subtree: true, characterData: true});
+
+try {
+  db.ref('casino/verified').on('value', s => {
+    FX_VER = s.val() || {};
+    document.querySelectorAll('.fxv').forEach(e => e.remove());
+    fxScanNode(document.body);
+  }, () => {});
+} catch (e) {}
+setTimeout(() => fxScanNode(document.body), 1500);
+// ===== ✅ Верификация: админка (часть 30) =====
+function axVerify(){
+  if (!axOwner()) return;
+  const el = document.getElementById('ax-name');
+  const v = prompt('Ник игрока для верификации:', el ? el.value.trim() : '');
+  if (v === null || !v.trim()) return;
+  const t = prompt('Галочка: 1 = синяя, 2 = золотая, 0 = снять', '1');
+  if (t === null) return;
+  const lv = parseInt(t, 10), nick = v.trim(), k = ukey(nick);
+  if (![0, 1, 2].includes(lv)) return alert('Нужно 0, 1 или 2');
+  db.ref('users/' + k).once('value').then(s => {
+    if (!s.exists()) return alert('Игрок не найден');
+    const ref = db.ref('casino/verified/' + k);
+    return (lv ? ref.set(lv) : ref.remove()).then(() => {
+      adminLog('Галочка ' + lv + ' → ' + nick);
+      alert('Готово: ' + nick + ' — ' + (lv ? 'галочка ' + lv : 'галочка снята'));
+    });
+  }).catch(e => alert('Нет доступа: ' + e.message));
+}
+
+function axVerList(){
+  if (!axOwner()) return;
+  const ks = Object.keys(FX_VER);
+  box('ax-verlist', '<h3>✅ С галочкой (' + ks.length + ')</h3>' + (ks.map(k =>
+    '<div class="list-item"><span>' + esc(k) + (Number(FX_VER[k]) === 2 ? ' 👑' : '') +
+    '</span><button onclick="axVerDel(\'' + esc(k) + '\')" ' +
+    'style="width:auto;padding:6px 10px;margin:0;background:#c0392b">✕</button></div>').join('') ||
+    '<p>Пока никого</p>'));
+}
+
+function axVerDel(k){
+  if (!axOwner() || !confirm('Снять галочку у ' + k + '?')) return;
+  db.ref('casino/verified/' + k).remove().then(() => { adminLog('Галочка снята: ' + k); axVerList(); });
+}
+
+const _oaFx7 = openAdmin;
+openAdmin = function(){
+  _oaFx7();
+  if (currentUser && currentUser.toLowerCase() === 'deadk1ra') {
+    axAddBtns('ax-fx6', [['✅', 'Выдать галочку', axVerify], ['📋', 'Список галочек', axVerList]]);
+  }
+};
+
+if (typeof trAdd === 'function') trAdd(`
+Подтверждённый игрок|Verified player|Підтверджений гравець|Расталған ойыншы
+Создатель игры|Game creator|Творець гри|Ойын жасаушысы
+`);
 </script>
