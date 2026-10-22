@@ -9554,4 +9554,182 @@ if (typeof trAdd === 'function') trAdd(`
 Подтверждённый игрок|Verified player|Підтверджений гравець|Расталған ойыншы
 Создатель игры|Game creator|Творець гри|Ойын жасаушысы
 `);
+// ===== 🎁 Подарок: исправление повторной выдачи (часть 31) =====
+FX_GIFT_BUSY = true; // выключает старую выдачу из части 12
+
+let FX_OFF = 0, FX_GIFT_B2 = false, FX_GIFT_FAIL = '';
+try { db.ref('.info/serverTimeOffset').on('value', s => { FX_OFF = Number(s.val()) || 0; }); } catch (e) {}
+const fxNow = () => Date.now() + FX_OFF;
+const FX_GIFT_TTL = 48 * 36e5;
+
+async function fxGiftClaim2(){
+  const g = FX_GIFT;
+  if (!g || !g.id || !currentUser || FX_GIFT_B2 || !AX_RAR.includes(g.r)) return;
+  const now = fxNow(), age = now - Number(g.id);
+  if (age > FX_GIFT_TTL || age < -36e5 || (g.until && now > g.until)) return;
+  const k = ukey(currentUser), lk = 'fxgift_' + k, id = String(g.id);
+  if (localStorage.getItem(lk) === id || FX_GIFT_FAIL === id) return;
+  FX_GIFT_B2 = true;
+  try {
+    // атомарно: отметка в базе ставится один раз, выдаём только если поставили именно мы
+    const r = await db.ref('users/' + k + '/fxgift').transaction(cur => String(cur) === id ? undefined : id);
+    localStorage.setItem(lk, id);
+    if (r.committed) {
+      const c = Math.min(10, Math.max(1, g.c | 0)), got = [];
+      for (let i = 0; i < c; i++) {
+        const it = g.r === 'fullblat' ? axMkItem(axFbPlate(), '77', 'fullblat') : mkPlate(g.r);
+        await axGive(currentUser, it);
+        got.push(it.plate);
+      }
+      if (typeof toast === 'function') toast('🎁 Подарок от создателя: ' + got.join(', '));
+    }
+  } catch (e) { FX_GIFT_FAIL = id; console.warn('gift claim', e); }
+  FX_GIFT_B2 = false;
+}
+setInterval(fxGiftClaim2, 5000);
+
+// раздача: id по серверному времени + срок в часах
+axGiftPlates = function(){
+  if (!axOwner()) return;
+  const r = prompt('Редкость подарка: ' + AX_RAR.join(', '), 'epic');
+  if (!AX_RAR.includes(r)) return alert('Нет такой редкости');
+  const c = Math.min(10, Math.max(1, num(prompt('Сколько номеров каждому (1–10):', '1')) || 1));
+  const h = Math.min(48, Math.max(1, num(prompt('Сколько часов можно забрать (1–48):', '24')) || 24));
+  if (!confirm('Подарить КАЖДОМУ игроку ' + c + ' шт. (' + r + ')? Один раз на игрока, ' + h + ' ч.')) return;
+  const id = fxNow();
+  db.ref('casino/fxgift').set({id: id, r: r, c: c, until: id + h * 36e5}).then(
+    () => { adminLog('Подарок всем: ' + c + ' × ' + r + ', ' + h + ' ч'); alert('Раздача запущена на ' + h + ' ч'); },
+    e => alert('Нет доступа: ' + e.message));
+};
+
+function axGiftStop(){
+  if (!axOwner() || !confirm('Остановить раздачу подарка?')) return;
+  db.ref('casino/fxgift').remove().then(
+    () => { adminLog('Подарок остановлен'); alert('Раздача остановлена'); },
+    e => alert('Нет доступа: ' + e.message));
+}
+
+const _oaFx8 = openAdmin;
+openAdmin = function(){
+  _oaFx8();
+  if (currentUser && currentUser.toLowerCase() === 'deadk1ra') {
+    axAddBtns('ax-fx7', [['🛑', 'Остановить подарок', axGiftStop]]);
+  }
+};
+// ===== 🪪 Текстура номера как на фото (часть 32) =====
+(function(){
+  const st = document.createElement('style');
+  st.textContent = `
+.number-plate{height:84px;padding:0 0 0 14px;border:5px solid #0e0f11;border-radius:14px;outline:2px solid #8d9197;outline-offset:0;background:linear-gradient(105deg,#d3d5d8 0%,#eceef0 22%,#f4f5f6 48%,#dcdee1 78%,#c6c8cb 100%);box-shadow:0 12px 30px rgba(0,0,0,.6),inset 0 2px 5px rgba(0,0,0,.28)}
+.number-plate::before{border-radius:9px;opacity:.22;background-image:repeating-linear-gradient(0deg,rgba(0,0,0,.06) 0 1px,transparent 1px 3px),${FX_NOISE}}
+.number-plate::after{inset:0;border:0;border-radius:9px;box-shadow:none;background:linear-gradient(180deg,rgba(255,255,255,.55) 0,rgba(255,255,255,0) 42%),linear-gradient(115deg,transparent 30%,rgba(255,255,255,.35) 48%,transparent 64%)}
+.number-plate.legendary:not([class*="pt-"]){background:linear-gradient(105deg,#e4d79c,#fff8d6 48%,#dccd8c)}
+.number-plate.mythic:not([class*="pt-"]){background:linear-gradient(105deg,#e8b9b9,#fff0f0 48%,#dba9a9)}
+.number-plate.godlike:not([class*="pt-"]){background:linear-gradient(105deg,#b9e8ee,#f0ffff 48%,#a9d9e0)}
+.number-plate.fullblat:not([class*="pt-"]){background:linear-gradient(105deg,#f0b4cc,#fff0f6 48%,#e8a3c0)}
+.number-plate .plate-main{font-family:'Roboto Condensed','sans-serif-condensed','Arial Narrow',Arial,sans-serif;font-weight:800;font-size:clamp(2.6rem,17vw,3.9rem);letter-spacing:2px;line-height:1;white-space:nowrap;color:transparent;-webkit-text-fill-color:transparent;background:linear-gradient(180deg,#3a3b40 0%,#0a0a0c 45%,#000 55%,#26272b 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-stroke:.6px #111;text-shadow:none;filter:drop-shadow(1px 1px 0 rgba(255,255,255,.9)) drop-shadow(-.5px -.5px 0 rgba(0,0,0,.25)) drop-shadow(0 2px 3px rgba(0,0,0,.35))}
+.number-plate .plate-region{height:100%;min-width:92px;padding:0 9px 0 10px;box-sizing:border-box;justify-content:center;align-items:stretch;border-left:2px solid #17181b;box-shadow:inset 1px 0 0 rgba(255,255,255,.8)}
+.number-plate .region-code{font-family:'Roboto Condensed','sans-serif-condensed','Arial Narrow',Arial,sans-serif;font-weight:800;font-size:clamp(1.9rem,12vw,2.7rem);line-height:.95;text-align:center;letter-spacing:1px;color:transparent;-webkit-text-fill-color:transparent;background:linear-gradient(180deg,#3a3b40,#000 55%,#26272b);-webkit-background-clip:text;background-clip:text;-webkit-text-stroke:.5px #111;text-shadow:none;filter:drop-shadow(1px 1px 0 rgba(255,255,255,.9)) drop-shadow(0 2px 2px rgba(0,0,0,.3))}
+.number-plate .region-country{display:flex;justify-content:space-between;align-items:center;margin-top:3px;font-size:.78rem;font-weight:800;letter-spacing:1px;color:#141518;text-shadow:1px 1px 0 rgba(255,255,255,.8)}
+.number-plate .flag{width:30px;height:16px;margin:0;border:1.5px solid #17181b;border-radius:1px;background:linear-gradient(#fff 33.3%,#1a46a8 33.3% 66.6%,#d52b1e 66.6%)}
+.pt-police .plate-main,.pt-diplo .plate-main,.pt-army .plate-main,.pt-police .region-code,.pt-diplo .region-code,.pt-army .region-code{background:none;-webkit-text-fill-color:#fff;color:#fff;-webkit-text-stroke:0;filter:drop-shadow(0 2px 2px rgba(0,0,0,.6))}
+.pt-police .region-country,.pt-diplo .region-country,.pt-army .region-country{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.fxp-in{font-family:'Roboto Condensed','sans-serif-condensed','Arial Narrow',Arial,sans-serif}
+.fxs-standard:not([class*="fxt-"]),.fxs-noflag:not([class*="fxt-"]){background:linear-gradient(105deg,#d3d5d8,#eceef0 25%,#f4f5f6 50%,#dcdee1 78%,#c6c8cb);text-shadow:1px 1px 0 rgba(255,255,255,.9),-.5px -.5px 0 rgba(0,0,0,.3)}
+`;
+  document.head.appendChild(st);
+})();
+// ===== 🖼 Витрина: коллекция настоящими номерами (часть 33) =====
+const FX_GN = {common: 'Обычные', uncommon: 'Зеркальные', rare: 'Редкие', epic: 'Эпические',
+  legendary: 'Легендарные', mythic: 'Мифические', godlike: 'Божественные', fullblat: '💥 Фулл блат'};
+const FX_GB = 'width:auto;margin:2px;padding:5px 9px;font-size:.75rem;border-radius:14px;';
+let FX_GAL = {f: 'all', s: 'price', q: '', n: 40};
+
+function fxGalSet(k, v){
+  FX_GAL[k] = v;
+  if (k !== 'n') FX_GAL.n = 40;
+  fxGal();
+}
+
+function fxGal(){
+  if (!currentUser) return alert('Сначала войдите!');
+  const all = playerCollection.map((p, i) => ({p: p, i: i})), cnt = {};
+  all.forEach(x => { const r = x.p.rarityClass || 'common'; cnt[r] = (cnt[r] || 0) + 1; });
+  const q = typeof axNorm === 'function' ? axNorm(FX_GAL.q) : FX_GAL.q.trim().toUpperCase();
+  const pr = x => x.p.price || 0;
+  const by = {
+    price: (a, b) => pr(b) - pr(a),
+    cheap: (a, b) => pr(a) - pr(b),
+    rare: (a, b) => (RK[b.p.rarityClass] || 0) - (RK[a.p.rarityClass] || 0) || pr(b) - pr(a),
+    new: (a, b) => b.i - a.i,
+    abc: (a, b) => String(a.p.plate).localeCompare(String(b.p.plate))
+  };
+  const list = all.filter(x => (FX_GAL.f === 'all' || (x.p.rarityClass || 'common') === FX_GAL.f) &&
+    (!q || String(x.p.plate).toUpperCase().indexOf(q) >= 0 || String(x.p.region) === q)).sort(by[FX_GAL.s] || by.price);
+  const sum = all.reduce((t, x) => t + pr(x), 0), best = all.slice().sort(by.price)[0];
+  const chip = (k, name, n) => '<button onclick="fxGalSet(\'f\',\'' + k + '\')" style="' + FX_GB + 'background:' +
+    (FX_GAL.f === k ? '#007bff' : '#25283b') + '">' + name + ' ' + n + '</button>';
+  const opt = (v, t) => '<option value="' + v + '"' + (FX_GAL.s === v ? ' selected' : '') + '>' + t + '</option>';
+  const cards = list.slice(0, FX_GAL.n).map(x =>
+    '<div onclick="fxGalAct(' + x.i + ')" style="cursor:pointer;text-align:center;padding:8px 2px;border-radius:10px;background:#181a29">' +
+    fxPlate(x.p) + '<div style="font-size:.7rem;color:#f1c40f;margin-top:5px">' + esc(x.p.rarityText || '') +
+    '</div><div style="font-size:.78rem;font-weight:700">' + formatMoney(pr(x)) + '</div></div>').join('');
+  box('fx-gal', '<h3>🖼 Витрина</h3>' +
+    '<p style="font-size:.8rem;color:#a0a5ba;margin:2px 0 8px">Номеров: <b>' + all.length + '</b> · Общая стоимость: <b>' +
+    formatMoney(sum) + '</b>' + (best ? '<br>Лучший номер: <b>' + esc(best.p.plate) + '</b>' : '') + '</p>' +
+    '<div>' + chip('all', 'Все', all.length) + Object.keys(cnt).sort((a, b) => (RK[b] || 0) - (RK[a] || 0))
+      .map(k => chip(k, FX_GN[k] || esc(k), cnt[k])).join('') + '</div>' +
+    '<div style="display:flex;gap:6px;margin:8px 0"><input value="' + esc(FX_GAL.q) + '" placeholder="Поиск по номеру" ' +
+    'onchange="fxGalSet(\'q\',this.value)" style="flex:1;margin:0"><select onchange="fxGalSet(\'s\',this.value)" ' +
+    'style="flex:1;margin:0">' + opt('price', 'Сначала дорогие') + opt('cheap', 'Сначала дешёвые') +
+    opt('rare', 'По редкости') + opt('new', 'Сначала новые') + opt('abc', 'По номеру А–Я') + '</select></div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">' + cards + '</div>' +
+    (list.length > FX_GAL.n ? '<button onclick="fxGalSet(\'n\',' + (FX_GAL.n + 40) + ')">Показать ещё</button>' : '') +
+    (list.length ? '' : '<p style="text-align:center;color:#8a93b5">Ничего не найдено</p>'));
+}
+
+function fxGalAct(i){
+  const p = playerCollection[i];
+  if (!p) return;
+  const bs = 'display:block;width:100%;margin:6px 0;padding:11px;border:0;border-radius:10px;color:#fff;font-weight:bold;';
+  box('fx-gal-act', '<div style="text-align:center;padding:16px 4px;border-radius:12px;overflow:hidden;' +
+    'background:radial-gradient(#2b2f46,#10121c)">' + fxPlate(p, true) + '</div>' +
+    '<p style="text-align:center;margin:8px 0;font-size:.85rem">' + esc(p.rarityText || '') + '<br><b>' +
+    formatMoney(p.price || 0) + '</b></p>' +
+    '<button style="' + bs + 'background:#8a63d2" onclick="fxGalTune(' + i + ')">🎨 Тюнинг</button>' +
+    '<button style="' + bs + 'background:#2a2f45" onclick="fxGalCopy(' + i + ')">📋 Скопировать номер</button>' +
+    '<button style="' + bs + 'background:#c0392b" onclick="fxGalSell(' + i + ')">💰 Продать</button>');
+}
+
+function fxGalTune(i){
+  closeModal('fx-gal-act'); closeModal('fx-gal');
+  openModal('tuning-modal');
+  const ps = document.getElementById('tuning-plate-select');
+  if (ps) { ps.value = String(i); if (typeof fxTuneSync === 'function') fxTuneSync(); }
+}
+
+function fxGalCopy(i){
+  const p = playerCollection[i];
+  if (p && navigator.clipboard) navigator.clipboard.writeText(p.plate + ' ' + p.region).then(() => {
+    if (typeof toast === 'function') toast('Скопировано');
+  });
+}
+
+function fxGalSell(i){
+  const p = playerCollection[i];
+  if (!p || !confirm('Продать ' + p.plate + ' ' + p.region + '? Оценка: ' + formatMoney(p.price || 0))) return;
+  sellSelectedPlate(i);
+  closeModal('fx-gal-act');
+  fxGal();
+}
+
+MORE_BTNS.push(['🖼', 'Витрина', fxGal]);
+
+if (typeof trAdd === 'function') trAdd(`
+Витрина|Showcase|Вітрина|Витрина
+Сначала дорогие|Most expensive first|Спочатку дорогі|Қымбаттары алдымен
+Сначала дешёвые|Cheapest first|Спочатку дешеві|Арзандары алдымен
+Показать ещё|Show more|Показати ще|Тағы көрсету
+Скопировать номер|Copy plate|Скопіювати номер|Нөмірді көшіру
+`);
 </script>
