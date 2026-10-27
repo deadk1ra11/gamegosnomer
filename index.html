@@ -299,7 +299,7 @@ body{background-attachment:scroll!important}
 body #fx-bar{background:#101118!important}
 body #tabbar{background:#0d0e13!important}
 .modal{background:rgba(2,2,6,.93)}
-.modal-content{animation:none}
+.modal-content{animation:none;position:relative}
 .plate-container::before{filter:none;inset:-4px -10px}
 .number-plate{transition:box-shadow .3s,border-color .3s}
 .number-plate::before{mix-blend-mode:normal!important}
@@ -308,8 +308,8 @@ body #tabbar{background:#0d0e13!important}
 .user-tag{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;white-space:normal;font-size:.78rem;line-height:1.25}
 .balance{font-size:.92rem}
 .bal-chip{padding:8px 10px;gap:6px}
-.x2-row{position:sticky;top:14px;height:0;z-index:30;display:flex;justify-content:flex-end;overflow:visible}
-.modal .x2-row .x2{position:relative;top:-6px;right:-8px;width:34px;height:34px;min-width:0;padding:0;margin:0;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);box-shadow:none;color:#fff;font-size:1.05rem;line-height:1;display:grid;place-items:center}
+.x2-row{position:absolute;top:10px;right:10px;height:auto;z-index:100;display:flex;justify-content:flex-end;overflow:visible;pointer-events:none}
+.modal .x2-row .x2{position:relative;top:0;right:0;width:34px;height:34px;min-width:0;padding:0;margin:0;border-radius:50%;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);box-shadow:none;color:#fff;font-size:1.05rem;line-height:1;display:grid;place-items:center;pointer-events:auto;z-index:101}
 .auc-label{font-size:.68rem;font-weight:800;letter-spacing:1.2px;color:var(--muted);text-align:left;margin:14px 0 6px 2px}
 .auc-list{max-height:210px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;text-align:left}
 .auc-lot{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;border-radius:14px;background:var(--glass);border:1px solid var(--line);cursor:pointer;font-size:.92rem}
@@ -320,10 +320,6 @@ body #tabbar{background:#0d0e13!important}
 .auc-chip.on{background:linear-gradient(135deg,#5a6bff,#7b4dff);border-color:transparent}
 .pm-sum{margin:10px 0;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid var(--line);font-size:.85rem;color:var(--muted);text-align:left;line-height:1.6}
 .auc-chips{margin:8px 0}
-
-.number-plate{transition:transform .18s ease,box-shadow .3s,border-color .3s}
-#friends-modal .list-item{gap:10px}
-#friends-modal .list-box{border-radius:14px}
 </style>
 </head>
 <body>
@@ -860,71 +856,40 @@ const priceTag = document.getElementById('plate-price-tag');
 if (spinBtn) spinBtn.disabled = true;
 if (priceTag) priceTag.style.display = "none";
 playSound(300, 0.05);
-// Красивая анимация выпадения с замедлением (оптимизирована для слабых устройств)
+let clicks = 0;
+const interval = setInterval(() => {
 const plateText = document.getElementById('plate-text');
 const regionText = document.getElementById('region-text');
+if (plateText) plateText.innerText = `${getRandomElem(LETTERS)}${getRandomDigit()}${getRandomDigit()}${getRandomDigit()}${getRandomElem(LETTERS)}${getRandomElem(LETTERS)}`;
+if (regionText) regionText.innerText = Math.floor(Math.random() * 90) + 10;
+playSound(200 + clicks * 15, 0.02);
+clicks++;
+if (clicks > 12) {
+clearInterval(interval);
+let data = generatePlateData();
+playerCollection.push(data);
+saveCollection();
+if (plateText) plateText.innerText = data.plate;
+if (regionText) regionText.innerText = data.region;
 const plateEl = document.getElementById('plate');
-const rarityEl = document.getElementById('rarity-text');
-let data = null;
-const totalTicks = 28;
-let tick = 0;
-let lastT = 0;
-const start = performance.now();
-function easeOutCubic(t){ return 1 - Math.pow(1 - t, 3); }
-function randPlate(){
-  return getRandomElem(LETTERS) + getRandomDigit() + getRandomDigit() + getRandomDigit() + getRandomElem(LETTERS) + getRandomElem(LETTERS);
+if (plateEl) plateEl.className = "number-plate " + data.rarityClass;
+let st = document.getElementById('rarity-text');
+if (st) {
+st.innerText = data.rarityText + " (В коллекции!)";
+st.className = "rarity-status status-" + data.rarityClass;
 }
-function finishSpin(){
-  if (!data) {
-    data = generatePlateData();
-    playerCollection.push(data);
-    saveCollection();
-  }
-  if (plateText) plateText.innerText = data.plate;
-  if (regionText) regionText.innerText = data.region;
-  if (plateEl) {
-    plateEl.className = "number-plate " + data.rarityClass;
-    plateEl.style.transform = 'scale(1.06)';
-    setTimeout(() => { if (plateEl) plateEl.style.transform = ''; }, 220);
-  }
-  if (rarityEl) {
-    rarityEl.innerText = data.rarityText + " (В коллекции!)";
-    rarityEl.className = "rarity-status status-" + data.rarityClass;
-  }
-  if (priceTag) {
-    priceTag.innerText = "Стоимость: " + formatMoney(data.price);
-    priceTag.style.display = "block";
-  }
-  if (spinBtn) spinBtn.disabled = false;
-  if (data.rarityClass === 'legendary' || data.rarityClass === 'mythic' || data.rarityClass === 'godlike' || data.rarityClass === 'fullblat') {
-    playSound(800, 0.45);
-    if (typeof fxConfetti === 'function' && localStorage.getItem('fx_off') !== '1') try { fxConfetti(data.rarityClass === 'godlike' || data.rarityClass === 'fullblat' ? 220 : 120); } catch(e){}
-  } else {
-    playSound(500, 0.12);
-  }
+if (priceTag) {
+priceTag.innerText = "Стоимость: " + formatMoney(data.price);
+priceTag.style.display = "block";
 }
-function animFrame(now){
-  const elapsed = now - start;
-  // ~1.6s total with easing
-  const progress = Math.min(1, elapsed / 1600);
-  const eased = easeOutCubic(progress);
-  // Interval grows from ~35ms to ~140ms
-  const intervalMs = 35 + eased * 105;
-  if (now - lastT >= intervalMs) {
-    lastT = now;
-    tick++;
-    if (plateText) plateText.innerText = randPlate();
-    if (regionText) regionText.innerText = Math.floor(Math.random() * 90) + 10;
-    if (tick % 3 === 0) playSound(180 + tick * 8, 0.018);
-    if (plateEl) plateEl.style.transform = 'scale(' + (1 + 0.015 * Math.sin(tick * 0.7)) + ')';
-  }
-  if (progress < 1) {
-    requestAnimationFrame(animFrame);
-  } else {
-    finishSpin();
-  }
+if (spinBtn) spinBtn.disabled = false;
+if (data.rarityClass === 'legendary' || data.rarityClass === 'godlike') {
+playSound(800, 0.4);
+} else {
+playSound(500, 0.1);
 }
-requestAnimationFrame(animFrame);
+}
+}, 60);
 }
 function openCollectionModal() {
 const container = document.getElementById('collection-items');
@@ -2189,7 +2154,7 @@ const u = s.val();
 if(!u) return;
 let n = 0;
 const t = setInterval(()=>{
-const e = document.querySelector('#prof-modal .modal-content > div');
+const e = document.querySelector('#prof-modal .modal-content > div:not(.x2-row)');
 n++;
 if(e && e.parentNode.textContent.toLowerCase().includes(String(name).toLowerCase())){
 e.innerHTML = '<img src="'+u+'" style="width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid #3b9eff">';
@@ -2219,7 +2184,7 @@ st.textContent = '#tabbar{position:fixed;left:0;right:0;bottom:0;z-index:80;disp
 document.head.appendChild(st);
 const tb = document.createElement('div');
 tb.id = 'tabbar';
-tb.innerHTML = '<button onclick="goTab(()=>window.scrollTo(0,0))"><span>🎰</span>Игра</button><button onclick="goTab(openCollectionModal)"><span>🗂</span>Коллекция</button><button onclick="goTab(openFriendsModal)"><span>👥</span>Друзья</button><button onclick="goTab(openChat)"><span>💬</span>Чат</button><button onclick="openMore()"><span>☰</span>Ещё</button>';
+tb.innerHTML = '<button onclick="goTab(()=>window.scrollTo(0,0))"><span>🎰</span>Игра</button><button onclick="goTab(openCollectionModal)"><span>🗂</span>Коллекция</button><button onclick="goTab(openMarketModal)"><span>🏪</span>Рынок</button><button onclick="goTab(openChat)"><span>💬</span>Чат</button><button onclick="openMore()"><span>☰</span>Ещё</button>';
 document.body.appendChild(tb);
 document.body.style.paddingBottom = '76px';
 })();
@@ -3438,23 +3403,10 @@ db.ref().update(u).then(()=>{ toast('Теперь вы друзья: ' + r.name)
 }
 function declineReq(k){ db.ref('reqs/'+ukey(currentUser)+'/'+k).remove().then(()=>openChats()); }
 function rmFriend(k){
-const name = FR[k] || k;
-const doRemove = function(){
-  const me = ukey(currentUser), u = {};
-  u['friends/'+me+'/'+k] = null; u['friends/'+k+'/'+me] = null;
-  db.ref().update(u).then(()=>{ if(typeof openChats==='function') openChats(); if(typeof renderFriendsUI==='function') try{renderFriendsUI()}catch(e){} });
-};
-if (typeof gameConfirm === 'function') {
-  // gameConfirm may be defined later; fallback handled below via window.removeFriend override
-}
-if (window.gameConfirm) {
-  window.gameConfirm('Удалить ' + name + ' из друзей?', doRemove);
-} else if (typeof removeFriend === 'function') {
-  removeFriend(k, name);
-} else {
-  // временный fallback до загрузки модуля друзей
-  if (confirm('Удалить ' + name + ' из друзей?')) doRemove();
-}
+if(!confirm('Удалить ' + FR[k] + ' из друзей?')) return;
+const me = ukey(currentUser), u = {};
+u['friends/'+me+'/'+k] = null; u['friends/'+k+'/'+me] = null;
+db.ref().update(u).then(()=>openChats());
 }
 function openDM(k){
 if(!currentUser) return;
@@ -10613,391 +10565,4 @@ openCollectionModal = function () {
     b.after(a);
   });
 };
-
-// ===== 👥 Система друзей + онлайн-статусы (исправлено) =====
-(function(){
-  if (window.__friendsSystemReady) return;
-  window.__friendsSystemReady = true;
-
-  // Используем уже разрешённые пути игры: friends/, reqs/, users/
-  const FR_PATH = 'friends';
-  const REQ_PATH = 'reqs';
-  let friendsList = {};
-  let incomingReqs = {};
-  let presenceCache = {};
-  let friendsUnsub = null, reqsUnsub = null, presUnsub = null;
-  let searchTimer = null;
-  let hbTimer = null;
-
-  function frKey(u){ return ukey(u); }
-
-  function formatLastSeen(ts){
-    if (!ts || !isFinite(ts)) return 'давно';
-    const diff = Math.max(0, Date.now() - Number(ts));
-    const sec = Math.floor(diff / 1000);
-    if (sec < 15) return 'только что';
-    if (sec < 60) return sec + ' сек. назад';
-    const min = Math.floor(sec / 60);
-    if (min < 60) return min + ' мин. назад';
-    const hrs = Math.floor(min / 60);
-    if (hrs < 24) return hrs + ' ч. назад';
-    const days = Math.floor(hrs / 24);
-    if (days === 1) return 'вчера';
-    if (days < 30) return days + ' дн. назад';
-    return 'давно';
-  }
-
-  function statusHtml(nick){
-    const p = presenceCache[frKey(nick)] || {};
-    const online = p.online === true && (Date.now() - (Number(p.lastSeen) || 0) < 120000);
-    if (online) {
-      return '<span style="color:#3ddc84;font-size:.72rem">● В сети</span>';
-    }
-    return '<span style="color:#8a8fa6;font-size:.72rem">○ ' + formatLastSeen(p.lastSeen) + '</span>';
-  }
-
-  // Presence пишем в users/{ukey}/ — у игрока есть права на свой узел
-  function setMyPresence(online){
-    if (!currentUser) return;
-    const k = frKey(currentUser);
-    const payload = {
-      online: !!online,
-      lastSeen: firebase.database.ServerValue.TIMESTAMP,
-      name: currentUser
-    };
-    const ref = db.ref('users/' + k);
-    ref.update(payload).catch(function(){});
-    if (online) {
-      try {
-        ref.onDisconnect().update({
-          online: false,
-          lastSeen: firebase.database.ServerValue.TIMESTAMP
-        });
-      } catch (e) {}
-    }
-  }
-
-  function startHeartbeat(){
-    if (hbTimer) clearInterval(hbTimer);
-    hbTimer = setInterval(function(){
-      if (!currentUser) return;
-      db.ref('users/' + frKey(currentUser)).update({
-        online: true,
-        lastSeen: firebase.database.ServerValue.TIMESTAMP
-      }).catch(function(){});
-    }, 50000);
-  }
-
-  function stopFriendsListeners(){
-    if (friendsUnsub) { try{ friendsUnsub(); }catch(e){} friendsUnsub = null; }
-    if (reqsUnsub) { try{ reqsUnsub(); }catch(e){} reqsUnsub = null; }
-    if (presUnsub) { try{ presUnsub(); }catch(e){} presUnsub = null; }
-    if (hbTimer) { clearInterval(hbTimer); hbTimer = null; }
-  }
-
-  function attachFriendsListeners(){
-    if (!currentUser) return;
-    stopFriendsListeners();
-    const myKey = frKey(currentUser);
-
-    // Синхронизируемся с уже существующими FR / RQ, если они есть
-    const fRef = db.ref(FR_PATH + '/' + myKey);
-    const onF = fRef.on('value', function(snap){
-      friendsList = snap.val() || {};
-      // подтягиваем в глобальный FR, чтобы чаты не ломались
-      try { if (typeof FR !== 'undefined') FR = friendsList; } catch(e){}
-      if (document.getElementById('friends-modal') && document.getElementById('friends-modal').style.display !== 'none') {
-        renderFriendsUI();
-      }
-    });
-    friendsUnsub = function(){ fRef.off('value', onF); };
-
-    const rRef = db.ref(REQ_PATH + '/' + myKey);
-    const onR = rRef.on('value', function(snap){
-      incomingReqs = snap.val() || {};
-      try { if (typeof RQ !== 'undefined') RQ = incomingReqs; } catch(e){}
-      if (document.getElementById('friends-modal') && document.getElementById('friends-modal').style.display !== 'none') {
-        renderFriendsUI();
-      }
-    });
-    reqsUnsub = function(){ rRef.off('value', onR); };
-
-    function refreshPresence(){
-      const keys = [myKey].concat(Object.keys(friendsList || {}));
-      keys.forEach(function(k){
-        db.ref('users/' + k).once('value').then(function(s){
-          if (!s.exists()) return;
-          const v = s.val() || {};
-          presenceCache[k] = {
-            online: !!v.online,
-            lastSeen: v.lastSeen || 0,
-            name: v.name || k
-          };
-          if (document.getElementById('friends-list')) updateStatusInList();
-        }).catch(function(){});
-      });
-    }
-    refreshPresence();
-    const presInt = setInterval(refreshPresence, 60000);
-    presUnsub = function(){ clearInterval(presInt); };
-
-    setMyPresence(true);
-    startHeartbeat();
-  }
-
-  const _loginFriends = loginUser;
-  loginUser = function(u){
-    _loginFriends(u);
-    setTimeout(function(){ attachFriendsListeners(); }, 500);
-  };
-
-  window.addEventListener('beforeunload', function(){
-    if (currentUser) {
-      try {
-        db.ref('users/' + frKey(currentUser)).update({
-          online: false,
-          lastSeen: firebase.database.ServerValue.TIMESTAMP
-        });
-      } catch(e){}
-    }
-  });
-
-  document.addEventListener('visibilitychange', function(){
-    if (!currentUser) return;
-    if (document.visibilityState === 'hidden') {
-      setMyPresence(false);
-    } else {
-      setMyPresence(true);
-      startHeartbeat();
-    }
-  });
-
-  function updateStatusInList(){
-    const list = document.getElementById('friends-list');
-    if (!list) return;
-    list.querySelectorAll('[data-fnick]').forEach(function(el){
-      const nick = el.getAttribute('data-fnick');
-      const st = el.querySelector('.fr-status');
-      if (st) st.innerHTML = statusHtml(nick);
-    });
-  }
-
-  // Игровое подтверждение вместо системного confirm
-  function gameConfirm(message, onYes){ window.gameConfirm = gameConfirm;
-    let m = document.getElementById('game-confirm-modal');
-    if (!m) {
-      m = document.createElement('div');
-      m.id = 'game-confirm-modal';
-      m.className = 'modal';
-      m.style.display = 'none';
-      m.innerHTML =
-        '<div class="modal-content" style="max-width:340px;text-align:center">' +
-        '<h3 style="margin-top:0" id="gc-title">Подтверждение</h3>' +
-        '<p id="gc-msg" style="color:var(--muted);font-size:.95rem;line-height:1.45;margin:12px 0 18px"></p>' +
-        '<div style="display:flex;gap:10px">' +
-        '<button id="gc-no" class="btn-action" style="background:#484f58;margin:0;flex:1">Нет</button>' +
-        '<button id="gc-yes" class="btn-action" style="background:linear-gradient(135deg,#ef4444,#b91c1c);margin:0;flex:1">Да</button>' +
-        '</div></div>';
-      document.body.appendChild(m);
-    }
-    document.getElementById('gc-msg').textContent = message;
-    const yes = document.getElementById('gc-yes');
-    const no = document.getElementById('gc-no');
-    const close = function(){ closeModal('game-confirm-modal'); };
-    yes.onclick = function(){ close(); if (typeof onYes === 'function') onYes(); };
-    no.onclick = close;
-    openModal('game-confirm-modal');
-  }
-  window.gameConfirm = gameConfirm;
-
-  window.openFriendsModal = function(){
-    if (!currentUser) {
-      openModal('auth-modal');
-      return alert('Сначала авторизуйтесь!');
-    }
-    if (!document.getElementById('friends-modal')) {
-      const m = document.createElement('div');
-      m.id = 'friends-modal';
-      m.className = 'modal';
-      m.style.display = 'none';
-      m.innerHTML =
-        '<div class="modal-content" style="text-align:left;max-width:420px">' +
-        '<div class="x2-row"><button class="x2" onclick="closeModal(\'friends-modal\')" aria-label="Закрыть">✕</button></div>' +
-        '<h2 style="text-align:center;margin-top:0">👥 Друзья</h2>' +
-        '<div style="margin:10px 0">' +
-        '<input id="fr-search-input" type="text" placeholder="Поиск игрока по нику..." maxlength="20" ' +
-        'style="width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);background:rgba(0,0,0,.45);color:#fff;font-size:1rem">' +
-        '<div id="fr-search-results" style="margin-top:8px;max-height:120px;overflow-y:auto"></div>' +
-        '</div>' +
-        '<div class="auc-label">ЗАЯВКИ В ДРУЗЬЯ</div>' +
-        '<div id="fr-requests" class="list-box" style="max-height:110px"></div>' +
-        '<div class="auc-label">МОИ ДРУЗЬЯ</div>' +
-        '<div id="friends-list" class="list-box" style="max-height:220px"></div>' +
-        '<button class="btn-action" style="background:#484f58;margin-top:10px" onclick="closeModal(\'friends-modal\')">Закрыть</button>' +
-        '</div>';
-      document.body.appendChild(m);
-      const inp = document.getElementById('fr-search-input');
-      if (inp) {
-        inp.addEventListener('input', function(){
-          clearTimeout(searchTimer);
-          searchTimer = setTimeout(doFriendSearch, 320);
-        });
-      }
-    }
-    openModal('friends-modal');
-    renderFriendsUI();
-    attachFriendsListeners();
-  };
-
-  function doFriendSearch(){
-    const inp = document.getElementById('fr-search-input');
-    const box = document.getElementById('fr-search-results');
-    if (!inp || !box) return;
-    const q = (inp.value || '').trim().toLowerCase();
-    if (q.length < 2) { box.innerHTML = ''; return; }
-    box.innerHTML = '<p style="color:#8a8fa6;font-size:.8rem;text-align:center">Ищем...</p>';
-
-    function drawResults(items){
-      let html = '';
-      items.forEach(function(name){
-        const k = frKey(name);
-        if (k === frKey(currentUser)) return;
-        const isFriend = !!(friendsList[k] || (typeof FR !== 'undefined' && FR[k]));
-        html += '<div class="list-item" style="padding:8px 10px">' +
-          '<span><b>' + esc(name) + '</b><br>' + statusHtml(name) + '</span>' +
-          (isFriend
-            ? '<span style="color:#3ddc84;font-size:.75rem">Уже друг</span>'
-            : '<button onclick="sendFriendRequest(\'' + esc(name) + '\')" style="width:auto;padding:6px 12px;margin:0;background:linear-gradient(135deg,#5a6bff,#7b4dff);border:0;border-radius:10px;color:#fff;font-weight:700;font-size:.78rem">Добавить</button>') +
-          '</div>';
-      });
-      box.innerHTML = html || '<p style="color:#8a8fa6;font-size:.8rem;text-align:center">Никого не найдено</p>';
-    }
-
-    db.ref('all_players').orderByKey().startAt(q).endAt(q + '\uf8ff').limitToFirst(12).once('value')
-      .then(function(snap){
-        const items = [];
-        snap.forEach(function(ch){ items.push(ch.val() || ch.key); });
-        if (items.length) drawResults(items);
-        else {
-          return db.ref('users').orderByKey().startAt(q).endAt(q + '\uf8ff').limitToFirst(10).once('value')
-            .then(function(s2){
-              const items2 = [];
-              s2.forEach(function(ch){ items2.push(ch.key); });
-              drawResults(items2);
-            });
-        }
-      })
-      .catch(function(){
-        db.ref('users').orderByKey().startAt(q).endAt(q + '\uf8ff').limitToFirst(10).once('value')
-          .then(function(s2){
-            const items2 = [];
-            s2.forEach(function(ch){ items2.push(ch.key); });
-            drawResults(items2);
-          })
-          .catch(function(){ box.innerHTML = '<p style="color:#e74c3c;font-size:.8rem">Ошибка поиска</p>'; });
-      });
-  }
-
-  window.sendFriendRequest = function(targetName){
-    if (!currentUser || !targetName) return;
-    const toKey = frKey(targetName);
-    const fromKey = frKey(currentUser);
-    if (toKey === fromKey) return alert('Нельзя добавить самого себя');
-    if (friendsList[toKey] || (typeof FR !== 'undefined' && FR[toKey])) return alert('Уже в друзьях');
-    // тот же путь, что использует встроенная система друзей
-    db.ref(REQ_PATH + '/' + toKey + '/' + fromKey).set({
-      name: currentUser,
-      t: Date.now()
-    }).then(function(){
-      if (typeof toast === 'function') toast('Заявка отправлена: ' + targetName);
-      else alert('Заявка отправлена игроку ' + targetName);
-      const box = document.getElementById('fr-search-results');
-      if (box) box.innerHTML = '';
-      const inp = document.getElementById('fr-search-input');
-      if (inp) inp.value = '';
-    }).catch(function(e){ alert('Не удалось отправить заявку: ' + e.message); });
-  };
-
-  window.acceptFriendRequest = function(fromKey, fromName){
-    if (!currentUser) return;
-    const myKey = frKey(currentUser);
-    const batch = {};
-    batch[FR_PATH + '/' + myKey + '/' + fromKey] = fromName || fromKey;
-    batch[FR_PATH + '/' + fromKey + '/' + myKey] = currentUser;
-    batch[REQ_PATH + '/' + myKey + '/' + fromKey] = null;
-    db.ref().update(batch).then(function(){
-      if (typeof toast === 'function') toast('Вы теперь друзья с ' + (fromName || fromKey));
-      renderFriendsUI();
-    }).catch(function(e){ alert('Ошибка: ' + e.message); });
-  };
-
-  window.declineFriendRequest = function(fromKey){
-    if (!currentUser) return;
-    db.ref(REQ_PATH + '/' + frKey(currentUser) + '/' + fromKey).remove()
-      .then(function(){ renderFriendsUI(); })
-      .catch(function(e){ alert('Ошибка: ' + e.message); });
-  };
-
-  window.removeFriend = function(friendKey, friendName){
-    if (!currentUser) return;
-    gameConfirm('Удалить ' + (friendName || friendKey) + ' из друзей?', function(){
-      const myKey = frKey(currentUser);
-      const batch = {};
-      batch[FR_PATH + '/' + myKey + '/' + friendKey] = null;
-      batch[FR_PATH + '/' + friendKey + '/' + myKey] = null;
-      db.ref().update(batch).then(function(){
-        if (typeof toast === 'function') toast('Удалено из друзей');
-        renderFriendsUI();
-      }).catch(function(e){ alert('Ошибка: ' + e.message); });
-    });
-  };
-
-  // Подменяем старый rmFriend, чтобы тоже использовал игровое окно
-  if (typeof rmFriend === 'function') {
-    window.rmFriend = function(k){
-      const name = (typeof FR !== 'undefined' && FR[k]) ? FR[k] : k;
-      removeFriend(k, name);
-    };
-  }
-
-  function renderFriendsUI(){
-    const reqBox = document.getElementById('fr-requests');
-    const listBox = document.getElementById('friends-list');
-    if (!reqBox || !listBox) return;
-
-    const reqKeys = Object.keys(incomingReqs || {});
-    if (!reqKeys.length) {
-      reqBox.innerHTML = '<p style="text-align:center;color:#8a8fa6;font-size:.8rem;margin:6px 0">Нет новых заявок</p>';
-    } else {
-      reqBox.innerHTML = reqKeys.map(function(k){
-        const r = incomingReqs[k] || {};
-        const name = r.name || r.from || k;
-        return '<div class="list-item" style="padding:8px 10px">' +
-          '<span><b>' + esc(name) + '</b><br><small style="color:#8a8fa6">Хочет добавить в друзья</small></span>' +
-          '<div style="display:flex;gap:6px">' +
-          '<button onclick="acceptFriendRequest(\'' + esc(k) + '\',\'' + esc(name) + '\')" style="width:auto;padding:6px 10px;margin:0;background:#2ea44f;border:0;border-radius:8px;color:#fff;font-size:.75rem">✓</button>' +
-          '<button onclick="declineFriendRequest(\'' + esc(k) + '\')" style="width:auto;padding:6px 10px;margin:0;background:#c0392b;border:0;border-radius:8px;color:#fff;font-size:.75rem">✕</button>' +
-          '</div></div>';
-      }).join('');
-    }
-
-    const fKeys = Object.keys(friendsList || {});
-    if (!fKeys.length) {
-      listBox.innerHTML = '<p style="text-align:center;color:#8a8fa6;font-size:.8rem;margin:8px 0">Друзей пока нет. Найдите игроков выше!</p>';
-    } else {
-      listBox.innerHTML = fKeys.map(function(k){
-        const f = friendsList[k];
-        const name = (typeof f === 'string' ? f : (f && f.name)) || k;
-        return '<div class="list-item" data-fnick="' + esc(name) + '" style="padding:10px 12px">' +
-          '<span><b>' + esc(name) + '</b><br><span class="fr-status">' + statusHtml(name) + '</span></span>' +
-          '<button onclick="removeFriend(\'' + esc(k) + '\',\'' + esc(name) + '\')" style="width:auto;padding:6px 10px;margin:0;background:rgba(231,76,60,.2);border:1px solid rgba(231,76,60,.4);border-radius:8px;color:#ffb4b4;font-size:.72rem">Удалить</button>' +
-          '</div>';
-      }).join('');
-    }
-  }
-
-  window._friendsDebug = function(){ return { friendsList: friendsList, incomingReqs: incomingReqs, presenceCache: presenceCache }; };
-})();
-
-
 </script>
