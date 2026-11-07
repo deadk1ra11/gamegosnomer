@@ -34,6 +34,7 @@ if (typeof firebase === 'undefined') {
 }
 </script>
     <style>
+
         :root {
             --bg1:#070914; --bg2:#12162b; --card:rgba(255,255,255,.055);
             --line:rgba(255,255,255,.10); --text:#f2f4ff; --muted:#8e94b3;
@@ -320,6 +321,168 @@ body #tabbar{background:#0d0e13!important}
 .auc-chip.on{background:linear-gradient(135deg,#5a6bff,#7b4dff);border-color:transparent}
 .pm-sum{margin:10px 0;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid var(--line);font-size:.85rem;color:var(--muted);text-align:left;line-height:1.6}
 .auc-chips{margin:8px 0}
+
+/* ===== ПК / десктоп: шире колонка, крупнее номер и кнопки ===== */
+@media (min-width: 900px) {
+  body {
+    padding: 24px 20px 120px !important;
+    gap: 16px !important;
+    justify-content: flex-start !important;
+    padding-top: 32px !important;
+  }
+  .header,
+  .region-selector-box,
+  .bottom-menu,
+  body #fx-bar {
+    max-width: 640px !important;
+    width: 100% !important;
+  }
+  .header {
+    padding: 14px 18px !important;
+    border-radius: 22px !important;
+  }
+  .avatar {
+    width: 52px !important;
+    height: 52px !important;
+    font-size: 1.6rem !important;
+  }
+  .user-tag {
+    font-size: 1rem !important;
+  }
+  .balance {
+    font-size: 1.15rem !important;
+  }
+  .bal-chip {
+    padding: 10px 16px !important;
+  }
+  .region-selector-box {
+    padding: 14px 16px !important;
+  }
+  .region-selector-box label {
+    font-size: .75rem !important;
+  }
+  .region-selector-box select {
+    padding: 14px !important;
+    font-size: 1.05rem !important;
+  }
+  .plate-container,
+  .btn-container {
+    max-width: 560px !important;
+    width: 100% !important;
+  }
+  .number-plate {
+    height: 110px !important;
+    border-radius: 14px !important;
+    padding: 0 12px 0 20px !important;
+  }
+  .plate-main {
+    font-size: 3.6rem !important;
+    letter-spacing: 4px !important;
+  }
+  .region-code {
+    font-size: 2.4rem !important;
+  }
+  .plate-region {
+    min-width: 90px !important;
+    padding-left: 12px !important;
+  }
+  .region-country {
+    font-size: .75rem !important;
+  }
+  .flag {
+    width: 18px !important;
+    height: 12px !important;
+  }
+  .rarity-status {
+    font-size: 1.15rem !important;
+  }
+  .plate-price-tag {
+    font-size: 1.1rem !important;
+    padding: 6px 18px !important;
+  }
+  .spin-btn {
+    width: 70% !important;
+    min-width: 280px !important;
+    max-width: 420px !important;
+    padding: 20px 28px !important;
+    font-size: 1.35rem !important;
+    letter-spacing: 2px !important;
+    cursor: pointer;
+  }
+  .spin-btn:hover {
+    filter: brightness(1.08);
+  }
+  .menu-btn {
+    padding: 12px 18px !important;
+    font-size: .95rem !important;
+    cursor: pointer;
+  }
+  .menu-btn:hover {
+    background: rgba(255,255,255,.12) !important;
+  }
+  body #tabbar {
+    max-width: 640px !important;
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%);
+    width: calc(100% - 40px) !important;
+    padding: 8px 6px !important;
+  }
+  body #tabbar button {
+    font-size: .78rem !important;
+    padding: 10px 0 11px !important;
+    cursor: pointer;
+  }
+  body #tabbar button span {
+    font-size: 1.5rem !important;
+  }
+  body #tabbar button:hover {
+    color: #fff !important;
+    background: rgba(255,255,255,.08);
+  }
+  .modal-content {
+    max-width: 480px !important;
+    padding: 28px 26px !important;
+  }
+  .modal input,
+  .modal select,
+  .modal button,
+  .btn-action {
+    font-size: 1.05rem !important;
+    padding: 14px !important;
+    cursor: pointer;
+  }
+  .list-item {
+    padding: 12px 14px !important;
+    font-size: .95rem !important;
+  }
+  /* курсор-pointer для интерактива на ПК */
+  button, .menu-btn, .spin-btn, select, .auc-lot, .auc-chip, .rgn-chip {
+    cursor: pointer;
+  }
+}
+@media (min-width: 1200px) {
+  .header,
+  .region-selector-box,
+  .bottom-menu,
+  body #fx-bar,
+  body #tabbar {
+    max-width: 720px !important;
+  }
+  .plate-container,
+  .btn-container {
+    max-width: 640px !important;
+  }
+  .number-plate {
+    height: 120px !important;
+  }
+  .plate-main {
+    font-size: 4rem !important;
+  }
+  .modal-content {
+    max-width: 520px !important;
+  }
+}
 </style>
 </head>
 <body>
@@ -418,6 +581,17 @@ body #tabbar{background:#0d0e13!important}
                 <li><b>Эпический / Легендарный:</b> Выпадают намного реже!</li>
             </ul>
             <button class="btn-action" onclick="closeModal('info-modal')">Понятно</button>
+        </div>
+    </div>
+
+    <!-- Модальное окно стартовой финансовой помощи -->
+    <div id="starter-bonus-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h2 style="margin-top:0; color:#2fd673;">💰 Финансовая помощь</h2>
+            <p style="font-size:0.95rem; line-height:1.55; color:#c8cde0; text-align:left;">
+                Мы заметили, что тебе не хватает денег для продолжения игры. Держи <b style="color:#ffcb45;">50 000 ₽</b> на новые прокрутки! Не сдавайся!
+            </p>
+            <button class="btn-action" style="background:linear-gradient(135deg,#34d57a,#16a34a);" onclick="closeModal('starter-bonus-modal')">Отлично!</button>
         </div>
     </div>
 
@@ -731,16 +905,22 @@ db.ref('chances/' + ukey(user)).on('value', (snap) => {
 myChance = snap.exists() ? parseFloat(snap.val()) : NaN;
 });
 db.ref('users/' + user.toLowerCase() + '/balance').on('value', (snapshot) => {
-if (snapshot.exists()) {
+if (snapshot.exists() && typeof snapshot.val() === 'number') {
 balance = snapshot.val();
 BAL_OK = true;
-} else {
-balance = 10000;
-BAL_OK = true;
-db.ref('users/' + user.toLowerCase() + '/balance').set(balance);
-}
 localStorage.setItem('bal_' + user.toLowerCase(), balance);
 updateBalanceDisplay();
+} else if (!BAL_OK) {
+// Баланс в RTDB отсутствует только при первом входе / сбое.
+// Не затираем реальный прогресс: берём localStorage, иначе стартовые 10 000.
+const cached = parseInt(localStorage.getItem('bal_' + user.toLowerCase()), 10);
+balance = (!isNaN(cached) && cached >= 0) ? cached : 10000;
+BAL_OK = true;
+db.ref('users/' + user.toLowerCase() + '/balance').set(balance);
+localStorage.setItem('bal_' + user.toLowerCase(), balance);
+updateBalanceDisplay();
+}
+// если snapshot пустой, но BAL_OK уже true — игнорируем (не сбрасываем баланс)
 });
 db.ref('all_players/' + user.toLowerCase()).set(user);
 const adminBtn = document.getElementById('admin-open-btn');
@@ -754,6 +934,7 @@ adminBtn.style.display = isOwnerName ? "block" : "none";
 });
 }
 checkDailyBonus();
+setTimeout(checkStarterBonus, 900);
 }
 function logoutUser() {
 if (confirm("Вы действительно хотите выйти из аккаунта?")) {
@@ -930,6 +1111,43 @@ ref.set(now);
 updateBalance(3000);
 setTimeout(() => alert("🎁 Ежедневный бонус: вам начислено 3 000 ₽!"), 500);
 }
+});
+}
+/** Стартовая финансовая помощь: один раз, только если баланс < 3000 ₽.
+ *  Не трогаем весь узел users/{user} — только флаг и balance, чтобы не затирать данные. */
+function checkStarterBonus() {
+if (!currentUser) return;
+const userKey = String(currentUser).toLowerCase();
+const flagRef = db.ref('users/' + userKey + '/starterBonusClaimed');
+const balRef = db.ref('users/' + userKey + '/balance');
+
+flagRef.once('value').then(function(flagSnap) {
+if (flagSnap.val() === true) return; // уже получал
+
+return balRef.once('value').then(function(balSnap) {
+const bal = balSnap.exists() ? (Number(balSnap.val()) || 0) : 0;
+if (bal >= 3000) return; // не нуждается — флаг не ставим
+
+// Атомарно забираем право на бонус (только один клиент победит)
+return flagRef.transaction(function(cur) {
+if (cur === true) return; // abort — уже выдано
+return true;
+}).then(function(result) {
+if (!result.committed) return; // другой клиент/вкладка уже забрал
+
+// Только победитель начисляет деньги
+return balRef.transaction(function(b) {
+const cur = (typeof b === 'number' && !isNaN(b)) ? b : 0;
+return cur + 50000;
+}).then(function() {
+setTimeout(function() {
+if (typeof openModal === 'function') openModal('starter-bonus-modal');
+}, 400);
+});
+});
+});
+}).catch(function(err) {
+console.warn('[РГН] starter bonus:', err && err.message ? err.message : err);
 });
 }
 async function activatePromo() {
@@ -1172,7 +1390,7 @@ if (btn) {
 btn.innerText = godModeActive ? "ВЫКЛЮЧИТЬ" : "ВКЛЮЧИТЬ";
 btn.style.background = godModeActive ? "#e74c3c" : "#8a63d2";
 }
-alert(godModeActive ? "👑 Режим Бога ВКЛЮЧЕН!" : "❌ Режим Бога выключен.");
+alert(godModeActive ? "?? Режим Бога ВКЛЮЧЕН!" : "❌ Режим Бога выключен.");
 });
 }
 function adminSetPlayerChance() {
@@ -2184,7 +2402,7 @@ st.textContent = '#tabbar{position:fixed;left:0;right:0;bottom:0;z-index:80;disp
 document.head.appendChild(st);
 const tb = document.createElement('div');
 tb.id = 'tabbar';
-tb.innerHTML = '<button onclick="goTab(()=>window.scrollTo(0,0))"><span>🎰</span>Игра</button><button onclick="goTab(openCollectionModal)"><span>🗂</span>Коллекция</button><button onclick="goTab(openMarketModal)"><span>🏪</span>Рынок</button><button onclick="goTab(openChat)"><span>💬</span>Чат</button><button onclick="openMore()"><span>☰</span>Ещё</button>';
+tb.innerHTML = '<button onclick="goTab(()=>window.scrollTo(0,0))"><span>🎰</span>Игра</button><button onclick="goTab(openCollectionModal)"><span>🗂</span>Коллекция</button><button onclick="goTab(openChats)"><span>👥</span>Друзья</button><button onclick="goTab(openChat)"><span>💬</span>Чат</button><button onclick="openMore()"><span>☰</span>Ещё</button>';
 document.body.appendChild(tb);
 document.body.style.paddingBottom = '76px';
 })();
@@ -3490,14 +3708,19 @@ updBadge();
 _oc3();
 };
 (function(){
-const b = Array.from(document.querySelectorAll('#tabbar button')).find(x=>x.textContent.indexOf('Чат') >= 0);
+const friendsBtn = Array.from(document.querySelectorAll('#tabbar button')).find(x=>/Друзья/.test(x.textContent||''));
+const chatBtn = Array.from(document.querySelectorAll('#tabbar button')).find(x=>/Чат/.test(x.textContent||'') && !/Друзья/.test(x.textContent||''));
+const b = friendsBtn || chatBtn;
 if(!b) return;
 b.style.position = 'relative';
-b.setAttribute('onclick', 'goTab(openChats)');
-const s = document.createElement('span');
-s.id = 'chat-badge';
-s.style.cssText = 'display:none;position:absolute;top:2px;left:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#fe2c55;color:#fff;font-size:11px;font-weight:700;align-items:center;justify-content:center;box-sizing:border-box;line-height:1';
-b.appendChild(s);
+if(friendsBtn) friendsBtn.setAttribute('onclick', 'goTab(openChats)');
+if(chatBtn) chatBtn.setAttribute('onclick', 'goTab(openChat)');
+if(!document.getElementById('chat-badge')){
+  const s = document.createElement('span');
+  s.id = 'chat-badge';
+  s.style.cssText = 'display:none;position:absolute;top:2px;left:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#fe2c55;color:#fff;font-size:11px;font-weight:700;align-items:center;justify-content:center;box-sizing:border-box;line-height:1';
+  b.appendChild(s);
+}
 })();
 const _op2 = openProfile;
 openProfile = function(name){
@@ -8952,6 +9175,9 @@ openAdmin = function(){
 let FX_PL = {me: null, all: null, ref: null};
 try { db.ref('casino/fxplate/_all').on('value', s => { FX_PL.all = s.val(); }, () => {}); } catch (e) {}
 
+// счётчики получения хранятся в Firebase: users/<ник>/fxpl/<id> (отдельно у каждого игрока)
+let FX_PL_USED = {}, FX_PL_READY = false, FX_PL_UREF = null, FX_PL_SEQ = 0;
+
 const _luPl = loginUser;
 loginUser = function(u){
   _luPl(u);
@@ -8959,11 +9185,20 @@ loginUser = function(u){
     if (FX_PL.ref) FX_PL.ref.off();
     FX_PL.ref = db.ref('casino/fxplate/' + ukey(u));
     FX_PL.ref.on('value', s => { FX_PL.me = s.val(); }, () => {});
+    if (FX_PL_UREF) FX_PL_UREF.off();
+    FX_PL_USED = {}; FX_PL_READY = false;
+    FX_PL_UREF = db.ref('users/' + ukey(u) + '/fxpl');
+    FX_PL_UREF.on('value', s => {
+      const v = s.val() || {};
+      Object.keys(v).forEach(k => { FX_PL_USED[k] = Math.max(Number(v[k]) || 0, FX_PL_USED[k] || 0); });
+      FX_PL_READY = true;
+    }, () => { FX_PL_READY = true; });
   } catch (e) {}
 };
 
+// пока отметки игрока не загрузились, спец-номер не выдаём (чтобы не выдать повторно)
 const fxPlOk = f => f && f.plate &&
-  (!f.n || Number(localStorage.getItem('fxpl_' + f.id) || 0) < f.n);
+  (!f.n || (FX_PL_READY && (FX_PL_USED[f.id] || 0) < f.n));
 
 const _gpPl = generatePlateData;
 generatePlateData = function(){
@@ -8971,9 +9206,23 @@ generatePlateData = function(){
   if (FX_SIM || godModeActive) return d;
   const f = [FX_PL.me, FX_PL.all].find(fxPlOk);
   if (!f) return d;
-  if (f.n) localStorage.setItem('fxpl_' + f.id, Number(localStorage.getItem('fxpl_' + f.id) || 0) + 1);
   Object.assign(d, axMkItem(f.plate, f.region, axRarityOf(f.plate)));
   delete d.ptype;
+  if (f.n) {
+    // 1) сразу бронируем в памяти (защита от быстрых/одновременных круток)
+    FX_PL_USED[f.id] = (FX_PL_USED[f.id] || 0) + 1;
+    const tag = f.id + '_' + Date.now() + '_' + (++FX_PL_SEQ);
+    d.fxu = tag;
+    // 2) фиксируем в Firebase транзакцией, не выше лимита (защита от нескольких устройств)
+    db.ref('users/' + ukey(currentUser) + '/fxpl/' + f.id)
+      .transaction(c => (c || 0) < f.n ? (c || 0) + 1 : undefined)
+      .then(r => {
+        if (r && r.committed) return;
+        // лимит уже выбран на другом устройстве: убираем лишний номер
+        const i = playerCollection.findIndex(p => p && p.fxu === tag);
+        if (i >= 0) { playerCollection.splice(i, 1); saveCollection(); }
+      }, () => {});
+  }
   return d;
 };
 
@@ -9009,6 +9258,85 @@ openAdmin = function(){
   _oaFx6();
   if (currentUser && currentUser.toLowerCase() === 'deadk1ra') {
     axAddBtns('ax-fx5', [['📌', 'Свой номер выпадает', axPlateFor]]);
+  }
+};
+// ===== 🎁 Выдача призов (часть 20б): деньги / машина / госномер =====
+let PZ_BUSY = false;
+
+function prizeMenu(){
+  if (!axOwner()) return;
+  box('prize-menu', '<h3>🎁 Выбери приз</h3>' +
+    [['money', '💰 Деньги'], ['car', '🚗 Машина'], ['plate', '🪪 Госномер']].map(x =>
+      '<button style="' + FX_BS + ';padding:18px;font-size:1.1rem" onclick="prizeForm(\'' + x[0] + '\')">' +
+      x[1] + '</button>').join(''));
+}
+
+function prizeForm(kind){
+  if (!axOwner()) return;
+  closeModal('prize-menu');
+  const T = {money: '💰 Деньги', car: '🚗 Машина', plate: '🪪 Госномер'};
+  const data = kind === 'car'
+    ? '<select id="pz-data">' + CARS.map((c, i) =>
+        '<option value="' + i + '">' + esc(c.n) + ' · ' + formatMoney(c.p) + '</option>').join('') + '</select>'
+    : '<input id="pz-data" type="text" autocomplete="off" inputmode="' + (kind === 'money' ? 'numeric' : 'text') +
+      '" placeholder="' + (kind === 'money' ? 'Сумма' : 'Госномер и регион: К777КК 77') + '">';
+  box('prize-give', '<h3>' + T[kind] + '</h3>' +
+    '<input id="pz-nick" type="text" autocomplete="off" placeholder="Ник игрока">' + data +
+    '<button id="pz-go" style="' + FX_BS + ';padding:16px;font-size:1.05rem;background:#27ae60" ' +
+    'onclick="prizeGive(\'' + kind + '\')">Выдать</button>' +
+    '<div id="pz-msg" style="font-size:.85rem;min-height:1.2em;margin:4px 0"></div>');
+}
+
+async function prizeGive(kind){
+  if (!axOwner() || PZ_BUSY) return;
+  const msg = document.getElementById('pz-msg'), btn = document.getElementById('pz-go');
+  const say = (t, ok) => { if (msg) { msg.textContent = t; msg.style.color = ok ? '#2ecc71' : '#ff6b6b'; } };
+  const nick = document.getElementById('pz-nick').value.trim();
+  const raw = document.getElementById('pz-data').value.trim();
+  if (!nick) return say('Введи ник игрока');
+  if (!raw) return say('Заполни данные приза');
+  PZ_BUSY = true; if (btn) btn.disabled = true;
+  try {
+    const k = ukey(nick);
+    if (!(await db.ref('users/' + k).once('value')).exists()) throw new Error('Игрок «' + nick + '» не найден');
+    let done;
+    if (kind === 'money') {
+      const a = num(raw);
+      if (!(a > 0) || a > 1e15) throw new Error('Сумма: целое число от 1 до 1 000 000 000 000 000');
+      await db.ref('users/' + k + '/balance').transaction(b => (typeof b === 'number' ? b : 0) + a);
+      done = formatMoney(a);
+    } else if (kind === 'car') {
+      const c = CARS[Number(raw)];
+      if (!c) throw new Error('Выбери машину из списка');
+      await db.ref('garages/' + k).transaction(g => {
+        const a = g ? (Array.isArray(g) ? g.filter(Boolean) : Object.values(g)) : [];
+        a.push({m: Number(raw), color: '#c0392b', tint: 0, lights: '#fff6c8', neon: '', low: c.l ? 1 : 0, plate: null});
+        return a;
+      });
+      done = c.n;
+    } else {
+      const m = axNorm(raw).match(/^([АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ]{2})\s*(\d{2,3})?$/);
+      if (!m) throw new Error('Формат: К777КК 77 (регион можно не писать, тогда 77)');
+      const it = axMkItem(m[1], m[2] || '77', axRarityOf(m[1]));
+      await axGive(nick, it);
+      done = m[1] + ' ' + it.region;
+    }
+    adminLog('Приз: ' + done + ' → ' + nick);
+    say('✅ Выдано: ' + done + ' → ' + nick, true);
+    const d = document.getElementById('pz-data');
+    if (d && d.tagName === 'INPUT') d.value = '';
+  } catch (e) {
+    say(e.message || 'Ошибка выдачи');
+  } finally {
+    PZ_BUSY = false; if (btn) btn.disabled = false;
+  }
+}
+
+const _oaPz = openAdmin;
+openAdmin = function(){
+  _oaPz();
+  if (currentUser && currentUser.toLowerCase() === 'deadk1ra') {
+    axAddBtns('ax-prize', [['🎁', 'Выдача призов', prizeMenu]]);
   }
 };
 // ===== 🌍 Перевод: дополнение (часть 21) =====
@@ -10565,4 +10893,1857 @@ openCollectionModal = function () {
     b.after(a);
   });
 };
+
+
+// ===== 🔧 РГН: шесть доработок (карточки, витрина профиля, активность друзей, рейтинги, glass, уведомления) =====
+(function(){
+'use strict';
+if (window.__RGN6__) return;
+window.__RGN6__ = true;
+
+/* ---- 5. Glass UI (только новые элементы, без ломки старого) ---- */
+(function(){
+  const st = document.createElement('style');
+  st.id = 'rgn6-glass';
+  st.textContent = `
+.rgn-glass{background:rgba(16,17,24,.82)!important;border:1px solid rgba(255,255,255,.12)!important;border-radius:18px!important;box-shadow:0 12px 36px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.06)!important}
+.rgn-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:12px 14px;margin:8px 0;text-align:left}
+.rgn-muted{color:#8a8fa6;font-size:.78rem}
+.rgn-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+.rgn-row:last-child{border-bottom:0}
+.rgn-chip{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:999px;font-size:.75rem;font-weight:700;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);cursor:pointer}
+.rgn-chip.on{background:linear-gradient(135deg,#5a6bff,#7b4dff);border-color:transparent;color:#fff}
+.rgn-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px;justify-content:center}
+.rgn-online{display:inline-block;width:8px;height:8px;border-radius:50%;background:#3ddc84;box-shadow:0 0 6px #3ddc84;margin-right:6px}
+.rgn-offline{display:inline-block;width:8px;height:8px;border-radius:50%;background:#5d6384;margin-right:6px}
+.rgn-badge{position:absolute;top:2px;right:calc(50% - 22px);min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:#fe2c55;color:#fff;font-size:10px;font-weight:700;display:none;align-items:center;justify-content:center;line-height:1}
+.rgn-ntf-item{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);margin-bottom:6px;cursor:pointer;text-align:left}
+.rgn-ntf-item.unread{border-color:rgba(124,140,255,.45);background:rgba(124,140,255,.12)}
+.rgn-ntf-item .t{font-size:.72rem;color:#8a8fa6;margin-top:2px}
+.rgn-show-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin:8px 0}
+@media (max-width:420px){.rgn-show-grid{grid-template-columns:1fr 1fr}}
+`;
+  document.head.appendChild(st);
+})();
+
+const rgnFmtRel = (ts) => {
+  if (!ts) return 'неизвестно';
+  const d = Date.now() - Number(ts);
+  if (d < 0) return 'только что';
+  const s = Math.floor(d / 1000);
+  if (s < 45) return s + ' сек. назад';
+  const m = Math.floor(s / 60);
+  if (m < 60) return m + ' мин. назад';
+  const h = Math.floor(m / 60);
+  if (h < 48) return h + ' ч. назад';
+  const days = Math.floor(h / 24);
+  if (days < 30) return days + ' дн. назад';
+  return new Date(Number(ts)).toLocaleDateString('ru-RU');
+};
+const rgnFmtDate = (ts) => {
+  if (!ts) return 'нет данных';
+  try {
+    return new Date(Number(ts)).toLocaleString('ru-RU', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+  } catch (e) { return 'нет данных'; }
+};
+const RGN_SRC = {
+  spin: '🎰 Рулетка',
+  market: '🛒 Покупка на рынке',
+  auction: '🔨 Аукцион',
+  gift: '🎁 Подарок',
+  admin: '🛠 Выдано админом',
+  craft: '⚒ Крафт',
+  reward: '🏅 Награда / достижение',
+  unknown: '❓ Источник неизвестен'
+};
+
+/* Метаданные номера при выдаче (совместимо со старыми номерами) */
+function rgnTagPlate(p, src) {
+  if (!p || typeof p !== 'object') return p;
+  if (!p.gotAt) p.gotAt = Date.now();
+  if (!p.src) p.src = src || 'unknown';
+  return p;
+}
+
+/* Оборачиваем ключевые точки выдачи без ломки логики */
+(function wrapGives(){
+  const tagPush = (arr, item, src) => {
+    if (item) rgnTagPlate(item, src);
+    return Array.prototype.push.call(arr, item);
+  };
+  // spinNumber уже пушит — патчим generatePlateData результат через spin
+  const _spin = typeof spinNumber === 'function' ? spinNumber : null;
+  if (_spin) {
+    spinNumber = function() {
+      const before = playerCollection.length;
+      const r = _spin.apply(this, arguments);
+      // после анимации номер появится асинхронно — подстрахуем интервалом
+      setTimeout(() => {
+        for (let i = before; i < playerCollection.length; i++) {
+          rgnTagPlate(playerCollection[i], 'spin');
+        }
+        if (typeof saveCollection === 'function') saveCollection();
+      }, 900);
+      return r;
+    };
+  }
+  const _mk = typeof mkPlate === 'function' ? mkPlate : null;
+  if (_mk) {
+    mkPlate = function(r) {
+      const p = _mk.apply(this, arguments);
+      return rgnTagPlate(p, 'reward');
+    };
+  }
+})();
+
+/* ---- 1. Подробная карточка номера ---- */
+window.rgnPlateCard = function(i, fromGal) {
+  if (!currentUser) return alert('Сначала войдите!');
+  const p = playerCollection[i];
+  if (!p) return alert('Номер не найден в коллекции');
+  const key = String(p.plate || '') + '|' + String(p.region || '');
+  const dups = playerCollection.filter(x => x && String(x.plate) === String(p.plate) && String(x.region || '') === String(p.region || '')).length;
+  const src = RGN_SRC[p.src] || RGN_SRC.unknown;
+  const got = p.gotAt || p.issuedAt || null;
+  const hist = (p.history && Array.isArray(p.history) && p.history.length)
+    ? p.history.map(h => '<div class="rgn-muted">• ' + esc(String(h)) + '</div>').join('')
+    : '<div class="rgn-muted">История для этого номера не сохранялась</div>';
+  const plateHtml = (typeof fxPlate === 'function')
+    ? fxPlate(p, true)
+    : '<div style="font-size:1.4rem;font-weight:800">' + esc(p.plate) + ' ' + esc(p.region || '') + '</div>';
+  const rarity = esc(p.rarityText || p.rarityClass || 'Обычный');
+  const html =
+    '<div style="text-align:center;padding:12px 4px;border-radius:14px;background:radial-gradient(#2b2f46,#10121c);overflow:hidden">' + plateHtml + '</div>' +
+    '<div class="rgn-card rgn-glass">' +
+    '<div class="rgn-row"><span class="rgn-muted">Редкость</span><b>' + rarity + '</b></div>' +
+    '<div class="rgn-row"><span class="rgn-muted">Регион</span><b>' + esc(p.region || '—') + '</b></div>' +
+    '<div class="rgn-row"><span class="rgn-muted">Оценка</span><b style="color:var(--gold,#ffcb45)">' + formatMoney(p.price || 0) + '</b></div>' +
+    '<div class="rgn-row"><span class="rgn-muted">Получен</span><b>' + rgnFmtDate(got) + '</b></div>' +
+    '<div class="rgn-row"><span class="rgn-muted">Источник</span><b>' + src + '</b></div>' +
+    '<div class="rgn-row"><span class="rgn-muted">Экземпляров</span><b>' + dups + '</b></div>' +
+    '</div>' +
+    '<div class="rgn-card"><div style="font-weight:700;margin-bottom:6px">📜 История</div>' + hist + '</div>' +
+    '<button class="btn-action" style="background:#8a63d2" onclick="rgnAddToShowcase(' + i + ')">⭐ В витрину профиля</button>' +
+    (fromGal ? '' : '<button class="btn-action" style="background:#2a2f45" onclick="closeModal(\'rgn-plate\');if(typeof fxGalAct===\'function\')fxGalAct(' + i + ')">Ещё действия</button>');
+  if (typeof box === 'function') box('rgn-plate', '<h3>Номер</h3>' + html);
+};
+
+/* Улучшаем действия витрины/коллекции */
+(function(){
+  const _fx = typeof fxGalAct === 'function' ? fxGalAct : null;
+  if (_fx) {
+    fxGalAct = function(i) {
+      _fx(i);
+      setTimeout(() => {
+        const mc = document.querySelector('#fx-gal-act .modal-content');
+        if (!mc || mc.querySelector('[data-rgn-card]')) return;
+        const b = document.createElement('button');
+        b.setAttribute('data-rgn-card', '1');
+        b.className = 'btn-action';
+        b.style.cssText = 'background:linear-gradient(135deg,#5a6bff,#7b4dff);margin:6px 0';
+        b.textContent = 'ℹ️ Подробнее';
+        b.onclick = () => rgnPlateCard(i, true);
+        const firstBtn = mc.querySelector('button');
+        if (firstBtn) mc.insertBefore(b, firstBtn);
+        else mc.appendChild(b);
+      }, 50);
+    };
+  }
+  const _oc = openCollectionModal;
+  openCollectionModal = function() {
+    _oc.apply(this, arguments);
+    setTimeout(() => {
+      const c = document.getElementById('collection-items');
+      if (!c || c.dataset.rgnInfo) return;
+      c.dataset.rgnInfo = '1';
+      c.addEventListener('click', function(e) {
+        const row = e.target.closest('[data-idx], .list-item, div[style*="background"]');
+        // кнопки не трогаем
+        if (e.target.closest('button, a, input, select')) return;
+      });
+      // Добавляем кнопку «ℹ️» к каждой строке коллекции
+      c.querySelectorAll('button[onclick^="sellSelectedPlate("], button[onclick^="putOnMarket("]').forEach(btn => {
+        const m = /(?:sellSelectedPlate|putOnMarket)\((\d+)\)/.exec(btn.getAttribute('onclick') || '');
+        if (!m) return;
+        const parent = btn.parentNode;
+        if (!parent || parent.querySelector('[data-rgn-i]')) return;
+        const info = document.createElement('button');
+        info.setAttribute('data-rgn-i', '1');
+        info.textContent = 'ℹ️';
+        info.style.cssText = 'background:#3b82f6;color:#fff;border:none;padding:5px 10px;border-radius:5px;cursor:pointer;font-weight:bold;font-size:0.75rem';
+        info.onclick = function(ev) { ev.stopPropagation(); rgnPlateCard(parseInt(m[1], 10)); };
+        parent.insertBefore(info, parent.firstChild);
+      });
+    }, 80);
+  };
+})();
+
+/* ---- 2. Витрина профиля (до 5 номеров + обложка) ---- */
+let RGN_SHOW = { cover: -1, items: [] }; // items: indices snapshot by plate key
+function rgnShowKey(p) {
+  return String(p && p.plate || '') + '|' + String(p && p.region || '');
+}
+function rgnLoadShowcase(cb) {
+  if (!currentUser) return cb && cb();
+  db.ref('users/' + ukey(currentUser) + '/showcase').once('value').then(s => {
+    const v = s.val() || {};
+    RGN_SHOW = { cover: typeof v.cover === 'number' ? v.cover : -1, items: Array.isArray(v.items) ? v.items.slice(0, 5) : [] };
+    if (cb) cb();
+  }).catch(() => { if (cb) cb(); });
+}
+function rgnSaveShowcase() {
+  if (!currentUser) return;
+  // сохраняем ключи номеров (plate|region), не индексы — устойчиво к сортировке
+  const payload = {
+    cover: RGN_SHOW.coverKey || null,
+    items: (RGN_SHOW.keys || []).slice(0, 5),
+    updated: Date.now()
+  };
+  db.ref('users/' + ukey(currentUser) + '/showcase').set(payload);
+}
+function rgnResolveShowKeys(keys, collection) {
+  const col = collection || playerCollection || [];
+  const out = [];
+  (keys || []).forEach(k => {
+    const i = col.findIndex(p => p && rgnShowKey(p) === k);
+    if (i >= 0) out.push({ i, p: col[i], k });
+  });
+  return out;
+}
+window.rgnAddToShowcase = function(i) {
+  const p = playerCollection[i];
+  if (!p) return;
+  const k = rgnShowKey(p);
+  RGN_SHOW.keys = RGN_SHOW.keys || [];
+  if (RGN_SHOW.keys.indexOf(k) >= 0) return alert('Этот номер уже в витрине');
+  if (RGN_SHOW.keys.length >= 5) return alert('В витрине максимум 5 номеров');
+  RGN_SHOW.keys.push(k);
+  if (!RGN_SHOW.coverKey) RGN_SHOW.coverKey = k;
+  rgnSaveShowcase();
+  if (typeof toast === 'function') toast('⭐ Добавлено в витрину');
+  else alert('Добавлено в витрину профиля');
+};
+window.rgnOpenMyShowcase = function() {
+  if (!currentUser) return alert('Сначала войдите!');
+  db.ref('users/' + ukey(currentUser) + '/showcase').once('value').then(s => {
+    const v = s.val() || {};
+    RGN_SHOW.keys = Array.isArray(v.items) ? v.items.slice(0, 5) : [];
+    RGN_SHOW.coverKey = v.cover || (RGN_SHOW.keys[0] || null);
+    const resolved = rgnResolveShowKeys(RGN_SHOW.keys, playerCollection);
+    const cards = resolved.length
+      ? resolved.map(x => {
+          const isCover = x.k === RGN_SHOW.coverKey;
+          const ph = typeof fxPlate === 'function' ? fxPlate(x.p) : esc(x.p.plate);
+          return '<div class="rgn-card" style="text-align:center">' + ph +
+            (isCover ? '<div class="rgn-muted" style="color:#ffcb45">Обложка</div>' : '') +
+            '<div style="display:flex;gap:4px;margin-top:6px;justify-content:center;flex-wrap:wrap">' +
+            '<button class="rgn-chip" onclick="rgnSetCover(\'' + esc(x.k).replace(/'/g, '') + '\')">Обложка</button>' +
+            '<button class="rgn-chip" onclick="rgnRemoveShow(\'' + esc(x.k).replace(/'/g, '') + '\')">Убрать</button></div></div>';
+        }).join('')
+      : '<p class="rgn-muted" style="text-align:center">Витрина пуста. Откройте номер → «В витрину»</p>';
+    box('rgn-show',
+      '<h3>⭐ Витрина профиля</h3><p class="rgn-muted">До 5 любимых номеров. Один — на обложке.</p>' +
+      '<div class="rgn-show-grid">' + cards + '</div>' +
+      '<button class="btn-action" style="background:#555" onclick="rgnClearShowcase()">Очистить витрину</button>');
+  });
+};
+window.rgnSetCover = function(k) {
+  RGN_SHOW.coverKey = k;
+  rgnSaveShowcase();
+  rgnOpenMyShowcase();
+};
+window.rgnRemoveShow = function(k) {
+  RGN_SHOW.keys = (RGN_SHOW.keys || []).filter(x => x !== k);
+  if (RGN_SHOW.coverKey === k) RGN_SHOW.coverKey = RGN_SHOW.keys[0] || null;
+  rgnSaveShowcase();
+  rgnOpenMyShowcase();
+};
+window.rgnClearShowcase = function() {
+  if (!confirm('Очистить витрину?')) return;
+  RGN_SHOW.keys = [];
+  RGN_SHOW.coverKey = null;
+  rgnSaveShowcase();
+  rgnOpenMyShowcase();
+};
+
+/* Встраиваем витрину в openProfile */
+(function(){
+  const _op = openProfile;
+  openProfile = function(name) {
+    _op.apply(this, arguments);
+    if (!name) return;
+    const k = ukey(name);
+    const me = currentUser && ukey(currentUser) === k;
+    // ждём отрисовку профиля
+    let n = 0;
+    const t = setInterval(() => {
+      n++;
+      const mc = document.querySelector('#prof-modal .modal-content');
+      if (!mc) { if (n > 20) clearInterval(t); return; }
+      if (mc.querySelector('[data-rgn-show]')) { clearInterval(t); return; }
+      clearInterval(t);
+      const wrap = document.createElement('div');
+      wrap.setAttribute('data-rgn-show', '1');
+      wrap.innerHTML = '<h3 style="margin:12px 0 6px">⭐ Витрина</h3><div id="rgn-prof-show" class="rgn-muted">Загрузка…</div>';
+      if (me) {
+        const btn = document.createElement('button');
+        btn.className = 'btn-action';
+        btn.style.background = '#8a63d2';
+        btn.textContent = '⭐ Настроить витрину';
+        btn.onclick = rgnOpenMyShowcase;
+        wrap.appendChild(btn);
+      }
+      const h3col = Array.from(mc.querySelectorAll('h3')).find(h => /коллекц/i.test(h.textContent || ''));
+      if (h3col) mc.insertBefore(wrap, h3col);
+      else mc.insertBefore(wrap, mc.lastElementChild);
+      // загрузка чужой/своей витрины
+      Promise.all([
+        db.ref('users/' + k + '/showcase').once('value'),
+        db.ref('collections/' + k).once('value')
+      ]).then(rs => {
+        const sh = rs[0].val() || {};
+        let col = rs[1].val();
+        col = col ? (Array.isArray(col) ? col.filter(Boolean) : Object.values(col)) : [];
+        const keys = Array.isArray(sh.items) ? sh.items : [];
+        const cover = sh.cover || null;
+        const boxEl = document.getElementById('rgn-prof-show');
+        if (!boxEl) return;
+        if (!keys.length) {
+          boxEl.innerHTML = '<span class="rgn-muted">Витрина пуста</span>';
+          return;
+        }
+        const resolved = rgnResolveShowKeys(keys, col);
+        boxEl.className = 'rgn-show-grid';
+        boxEl.innerHTML = resolved.map(x => {
+          const ph = typeof fxPlate === 'function' ? fxPlate(x.p) : '<b>' + esc(x.p.plate) + '</b>';
+          return '<div class="rgn-card" style="text-align:center">' + ph +
+            (x.k === cover ? '<div style="color:#ffcb45;font-size:.7rem;margin-top:4px">Обложка</div>' : '') +
+            '</div>';
+        }).join('') || '<span class="rgn-muted">Номера витрины больше не в коллекции</span>';
+      }).catch(() => {
+        const boxEl = document.getElementById('rgn-prof-show');
+        if (boxEl) boxEl.textContent = 'Не удалось загрузить витрину';
+      });
+    }, 120);
+  };
+})();
+
+/* ---- 3. Активность друзей (presence) ---- */
+let RGN_PRESENCE = {};
+let rgnHbTimer = null;
+function rgnSetOnline() {
+  if (!currentUser) return;
+  const k = ukey(currentUser);
+  // Пишем в stats/ — путь уже используется игрой и обычно доступен на запись
+  const payload = { name: currentUser, lastSeen: Date.now(), online: true };
+  db.ref('stats/' + k).update(payload).catch(function(){});
+  try {
+    db.ref('stats/' + k + '/online').onDisconnect().set(false).catch(function(){});
+    db.ref('stats/' + k + '/lastSeen').onDisconnect().set(Date.now()).catch(function(){});
+  } catch (e) {}
+}
+function rgnHeartbeat() {
+  if (!currentUser) return;
+  db.ref('stats/' + ukey(currentUser)).update({ lastSeen: Date.now(), online: true, name: currentUser }).catch(function(){});
+}
+function rgnIsOnline(p) {
+  if (!p) return false;
+  const last = Number(p.last) || 0;
+  // онлайн только если флаг on и lastSeen не старше 4 минут
+  return !!p.on && (Date.now() - last) < 4 * 60 * 1000;
+}
+(function wrapLoginPresence(){
+  const _lu = loginUser;
+  loginUser = function(u) {
+    _lu.apply(this, arguments);
+    setTimeout(() => {
+      rgnSetOnline();
+      if (rgnHbTimer) clearInterval(rgnHbTimer);
+      rgnHbTimer = setInterval(rgnHeartbeat, 120000); // раз в 2 минуты
+      // presence друзей из stats (lastSeen/online) — без отдельного /presence
+      db.ref('stats').on('value', s => {
+        const v = s.val() || {};
+        const map = {};
+        Object.keys(v).forEach(function(k){
+          const x = v[k] || {};
+          map[k] = { name: x.name, last: x.lastSeen || 0, on: !!x.online };
+        });
+        RGN_PRESENCE = map;
+      }, function(){});
+      // уведомления: подписка
+      rgnListenNotifs();
+      // статистика для рейтингов
+      rgnPushRankStats();
+    }, 400);
+  };
+})();
+
+/* Патч openChats — статус и last seen */
+(function(){
+  if (typeof openChats !== 'function') return;
+  const _oc = openChats;
+  openChats = function() {
+    _oc.apply(this, arguments);
+    setTimeout(() => {
+      const mc = document.querySelector('#chats-modal .modal-content, [id*="chat"] .modal-content');
+      // openChats использует box — ищем последний модал с друзьями
+      const modals = document.querySelectorAll('.modal');
+      let target = null;
+      modals.forEach(m => {
+        if (m.style.display === 'flex' && /друз|friend|чат/i.test(m.textContent || '')) target = m;
+      });
+      if (!target) return;
+      const content = target.querySelector('.modal-content');
+      if (!content || content.dataset.rgnFr) return;
+      content.dataset.rgnFr = '1';
+      // обновляем строки друзей
+      content.querySelectorAll('.list-item').forEach(row => {
+        const b = row.querySelector('b');
+        if (!b) return;
+        const nick = (b.textContent || '').trim();
+        const kk = ukey(nick);
+        const pr = RGN_PRESENCE[kk];
+        const online = rgnIsOnline(pr);
+        const sub = row.querySelector('small, .rgn-muted');
+        const status = online
+          ? '<span class="rgn-online"></span>В сети'
+          : '<span class="rgn-offline"></span>' + (pr && pr.last ? rgnFmtRel(pr.last) : 'не в сети');
+        if (sub) {
+          sub.innerHTML = status + (sub.textContent ? ' · ' + esc(sub.textContent) : '');
+        } else {
+          const sm = document.createElement('div');
+          sm.className = 'rgn-muted';
+          sm.style.fontSize = '.72rem';
+          sm.innerHTML = status;
+          b.parentNode.appendChild(sm);
+        }
+      });
+      // дата регистрации — если открыт профиль друга, уже есть created в users
+    }, 150);
+  };
+})();
+
+/* Дата регистрации в профиле */
+(function(){
+  const _op2 = openProfile;
+  openProfile = function(name) {
+    _op2.apply(this, arguments);
+    if (!name) return;
+    const k = ukey(name);
+    setTimeout(() => {
+      db.ref('users/' + k + '/created').once('value').then(s => {
+        const created = s.val();
+        const mc = document.querySelector('#prof-modal .modal-content');
+        if (!mc || mc.querySelector('[data-rgn-reg]')) return;
+        const pr = RGN_PRESENCE[k];
+        const online = rgnIsOnline(pr);
+        const div = document.createElement('div');
+        div.setAttribute('data-rgn-reg', '1');
+        div.className = 'rgn-card';
+        div.innerHTML =
+          '<div class="rgn-row"><span class="rgn-muted">Статус</span><b>' +
+          (online ? '<span class="rgn-online"></span>В сети' : '<span class="rgn-offline"></span>' + (pr && pr.last ? rgnFmtRel(pr.last) : 'не в сети')) +
+          '</b></div>' +
+          '<div class="rgn-row"><span class="rgn-muted">Регистрация</span><b>' + (created ? rgnFmtDate(created) : 'нет данных') + '</b></div>';
+        const h3 = mc.querySelector('h3');
+        if (h3 && h3.nextSibling) mc.insertBefore(div, h3.nextSibling);
+        else mc.insertBefore(div, mc.firstChild.nextSibling);
+      }).catch(() => {});
+    }, 200);
+  };
+})();
+
+/* ---- 4. Расширенные рейтинги ---- */
+function rgnCountAch(statsNode, userKey) {
+  // достиж. считаем из users/.../ach если уже подгружено для себя; для топа — из stats.achCnt
+  return 0;
+}
+function rgnPushRankStats() {
+  if (!currentUser) return;
+  try {
+    const col = Array.isArray(playerCollection) ? playerCollection : [];
+    const unique = new Set(col.map(p => p && (String(p.plate) + '|' + String(p.region || ''))));
+    const rareScore = col.reduce((s, p) => {
+      const r = (p && (p.rarityClass || p.rarity)) || 'common';
+      const w = { common:1, uncommon:2, rare:4, epic:8, legendary:16, mythic:28, godlike:40, fullblat:50 }[r] || 1;
+      return s + w;
+    }, 0);
+    const achCnt = (typeof ACH !== 'undefined' && ACH && typeof achDone === 'object')
+      ? ACH.filter(a => achDone[a.id]).length
+      : 0;
+    const bestRare = col.reduce((m, p) => {
+      const r = (p && (p.rarityClass || p.rarity)) || 'common';
+      const rank = { common:0, uncommon:1, rare:2, epic:3, legendary:4, mythic:5, godlike:6, fullblat:7 }[r] || 0;
+      return Math.max(m, rank);
+    }, 0);
+    db.ref('stats/' + ukey(currentUser)).update({
+      spins: (typeof S !== 'undefined' && S && S.spins) ? S.spins : (arguments[0] || undefined),
+      achCnt: achCnt,
+      uniq: unique.size,
+      rareScore: rareScore,
+      bestRare: bestRare,
+      cnt: col.length,
+      name: currentUser,
+      bal: typeof balance === 'number' ? balance : 0
+    }).catch(() => {});
+  } catch (e) {}
+}
+// периодически обновляем rank-поля
+setInterval(() => { if (currentUser) rgnPushRankStats(); }, 60000);
+
+(function(){
+  const _ot = openTop;
+  openTop = function() {
+    if (!currentUser) return alert('Сначала войдите в игру!');
+    rgnPushRankStats();
+    db.ref('stats').once('value').then(s => {
+      const all = [];
+      s.forEach(c => { const v = c.val(); if (v && v.name) all.push(Object.assign({ _k: c.key }, v)); });
+      const cats = [
+        { id: 'bal', title: '💰 Богатейшие', key: 'bal', money: true },
+        { id: 'spins', title: '🎰 Крутки', key: 'spins', money: false },
+        { id: 'ach', title: '🏅 Достижения', key: 'achCnt', money: false },
+        { id: 'uniq', title: '🔢 Уникальные номера', key: 'uniq', money: false },
+        { id: 'rare', title: '💎 Редкость коллекции', key: 'rareScore', money: false }
+      ];
+      window.__rgnTopData = all;
+      window.__rgnTopCats = cats;
+      window.rgnTopShow = function(id) {
+        const cat = cats.find(c => c.id === id) || cats[0];
+        const sortedAll = all.slice().sort((a, b) => (Number(b[cat.key]) || 0) - (Number(a[cat.key]) || 0));
+        const top10 = sortedAll.slice(0, 10);
+        const myKey = ukey(currentUser);
+        let myPlace = -1;
+        let myVal = 0;
+        for (let i = 0; i < sortedAll.length; i++) {
+          if (ukey(sortedAll[i].name) === myKey || sortedAll[i]._k === myKey) {
+            myPlace = i + 1;
+            myVal = Number(sortedAll[i][cat.key]) || 0;
+            break;
+          }
+        }
+        if (myPlace < 0 && typeof balance === 'number' && cat.id === 'bal') {
+          myVal = balance;
+          myPlace = sortedAll.filter(x => (Number(x[cat.key]) || 0) > myVal).length + 1;
+        }
+        const tabs = cats.map(c =>
+          '<span class="rgn-chip' + (c.id === cat.id ? ' on' : '') + '" onclick="rgnTopShow(\'' + c.id + '\')">' + c.title + '</span>'
+        ).join('');
+        const rows = top10.length
+          ? top10.map((x, i) => {
+              const val = Number(x[cat.key]) || 0;
+              const shown = cat.money ? formatMoney(val) : String(val);
+              const isMe = ukey(x.name) === myKey || x._k === myKey;
+              return '<div class="list-item"' + (isMe ? ' style="border-color:#7c8cff;background:rgba(124,140,255,.16)"' : '') + '><span>' + (i + 1) + '. ' + esc(x.name || 'Игрок') +
+                (isMe ? ' <small style="color:#7c8cff">(вы)</small>' : '') +
+                (cat.id === 'rare' && x.bp ? '<br><small style="color:#f1c40f">' + esc(x.bp) + '</small>' : '') +
+                '</span><b>' + shown + '</b></div>';
+            }).join('')
+          : '<p class="rgn-muted">Пока нет данных по этой категории</p>';
+        const myShown = cat.money ? formatMoney(myVal) : String(myVal);
+        const myBlock = myPlace > 0
+          ? ('<div class="rgn-card" style="margin-top:10px;text-align:left;border-color:rgba(124,140,255,.35);background:rgba(124,140,255,.12)">' +
+             '<div style="font-size:.72rem;color:#8a8fa6;letter-spacing:1px;font-weight:800;margin-bottom:4px">ВАШЕ МЕСТО</div>' +
+             '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">' +
+             '<span><b>' + myPlace + '.</b> ' + esc(currentUser) + '</span>' +
+             '<b style="color:#ffcb45;white-space:nowrap">' + myShown + '</b></div>' +
+             '<div style="font-size:.75rem;color:#8a8fa6;margin-top:4px">из ' + sortedAll.length + ' игроков · в топе показываются 10 мест</div></div>')
+          : '<div class="rgn-card" style="margin-top:10px;text-align:center;color:#8a8fa6">Вас пока нет в этом рейтинге</div>';
+        const mine = (typeof ACH !== 'undefined' && ACH)
+          ? ACH.map(a => (achDone[a.id] ? '✅ ' : '⬜ ') + a.t + ' (+' + formatMoney(a.r) + ')').join('<br>')
+          : '';
+        box('top-modal',
+          '<h3>🏆 Рейтинги</h3><div class="rgn-tabs">' + tabs + '</div>' +
+          '<div class="rgn-card rgn-glass">' + rows + '</div>' +
+          myBlock +
+          (mine ? '<h3>🏅 Мои достижения</h3><div style="text-align:left;font-size:.85rem" class="rgn-card">' + mine + '</div>' : '') +
+          '<button onclick="openTop()">↻ Обновить</button>');
+      };
+      rgnTopShow('bal');
+    }).catch(e => {
+      box('top-modal', '<h3>🏆 Топ</h3><p>Не удалось загрузить рейтинг</p><button onclick="openTop()">Повторить</button>');
+    });
+  };
+})();
+
+/* ---- 6. Центр уведомлений ---- */
+let RGN_NOTIFS = [];
+let rgnNotifUnsub = null;
+const RGN_NOTIF_MAX = 80;
+
+function rgnNotifRef() {
+  // Путь users/$key/notifs: игра пишет balance/коллекции в users/ без Firebase Auth.
+  // Корневой /notifs/ обычно закрыт правилами → permission_denied.
+  return currentUser ? db.ref('users/' + ukey(currentUser) + '/notifs') : null;
+}
+function rgnPushNotif(title, text, type, meta) {
+  if (!currentUser) return;
+  const id = Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+  const item = {
+    id: id,
+    title: String(title || 'Событие').slice(0, 80),
+    text: String(text || '').slice(0, 200),
+    type: type || 'sys',
+    t: Date.now(),
+    read: false,
+    meta: meta || null
+  };
+  // Локальный fallback, если RTDB недоступна
+  try {
+    RGN_NOTIFS.unshift(Object.assign({}, item));
+    if (RGN_NOTIFS.length > RGN_NOTIF_MAX) RGN_NOTIFS.length = RGN_NOTIF_MAX;
+    rgnUpdNotifBadge();
+  } catch (e) {}
+  const ref = rgnNotifRef();
+  if (!ref) return;
+  ref.child(id).set(item).then(() => {
+    ref.once('value').then(s => {
+      const all = [];
+      s.forEach(c => all.push({ k: c.key, t: (c.val() && c.val().t) || 0 }));
+      all.sort((a, b) => a.t - b.t);
+      const excess = all.length - RGN_NOTIF_MAX;
+      if (excess > 0) {
+        const u = {};
+        for (let i = 0; i < excess; i++) u[all[i].k] = null;
+        ref.update(u).catch(function(){});
+      }
+    }).catch(function(){});
+  }).catch(function(){});
+}
+function rgnListenNotifs() {
+  const ref = rgnNotifRef();
+  if (!ref) return;
+  if (rgnNotifUnsub) { try { ref.off(); } catch (e) {} }
+  ref.limitToLast(RGN_NOTIF_MAX).on('value', s => {
+    const arr = [];
+    s.forEach(c => { const v = c.val(); if (v) arr.push(Object.assign({ id: c.key }, v)); });
+    arr.sort((a, b) => (b.t || 0) - (a.t || 0));
+    RGN_NOTIFS = arr;
+    rgnUpdNotifBadge();
+  }, function(){});
+}
+function rgnUnreadCount() {
+  return RGN_NOTIFS.filter(n => !n.read).length;
+}
+function rgnUpdNotifBadge() {
+  const n = rgnUnreadCount();
+  let b = document.getElementById('rgn-ntf-badge');
+  if (!b) return;
+  b.textContent = n > 99 ? '99+' : String(n);
+  b.style.display = n ? 'flex' : 'none';
+}
+window.rgnOpenNotifs = function() {
+  if (!currentUser) return alert('Сначала войдите!');
+  const items = RGN_NOTIFS.length
+    ? RGN_NOTIFS.map(n =>
+      '<div class="rgn-ntf-item' + (n.read ? '' : ' unread') + '" onclick="rgnReadNotif(\'' + esc(n.id) + '\')">' +
+      '<div style="flex:1;min-width:0"><b>' + esc(n.title) + '</b><div>' + esc(n.text || '') + '</div>' +
+      '<div class="t">' + rgnFmtRel(n.t) + ' · ' + esc(n.type || 'sys') + '</div></div></div>'
+    ).join('')
+    : '<p class="rgn-muted" style="text-align:center">Нет уведомлений</p>';
+  box('rgn-ntf',
+    '<h3>🔔 Уведомления</h3>' +
+    '<div style="max-height:320px;overflow:auto">' + items + '</div>' +
+    '<button class="btn-action" style="background:#555" onclick="rgnReadAllNotifs()">Прочитать все</button>');
+};
+window.rgnReadNotif = function(id) {
+  if (!currentUser || !id) return;
+  const n = RGN_NOTIFS.find(x => x.id === id);
+  if (n) n.read = true;
+  rgnUpdNotifBadge();
+  const ref = rgnNotifRef();
+  if (ref) ref.child(id).child('read').set(true).catch(function(){});
+};
+window.rgnReadAllNotifs = function() {
+  if (!currentUser) return;
+  RGN_NOTIFS.forEach(n => { n.read = true; });
+  rgnUpdNotifBadge();
+  const u = {};
+  RGN_NOTIFS.forEach(n => { if (n.id) u[n.id + '/read'] = true; });
+  const ref = rgnNotifRef();
+  if (ref && Object.keys(u).length) ref.update(u).catch(function(){});
+  closeModal('rgn-ntf');
+};
+
+/* Хуки событий → уведомления (без дублей) */
+(function(){
+  // достижения
+  const _chk = typeof checkAch === 'function' ? checkAch : null;
+  if (_chk) {
+    checkAch = function() {
+      const before = Object.assign({}, achDone || {});
+      _chk.apply(this, arguments);
+      setTimeout(() => {
+        if (typeof ACH === 'undefined') return;
+        ACH.forEach(a => {
+          if (achDone[a.id] && !before[a.id]) {
+            rgnPushNotif('🏅 Достижение', a.t + ' (+' + formatMoney(a.r) + ')', 'ach', { id: a.id });
+          }
+        });
+      }, 50);
+    };
+  }
+  // друзья: заявки уже notify() — дублируем в центр один раз
+  const _nt = typeof notify === 'function' ? notify : null;
+  if (_nt) {
+    notify = function(title, text, tap) {
+      _nt.apply(this, arguments);
+      try {
+        const key = String(title) + '|' + String(text);
+        if (window.__rgnLastNtf === key) return;
+        window.__rgnLastNtf = key;
+        setTimeout(() => { if (window.__rgnLastNtf === key) window.__rgnLastNtf = ''; }, 3000);
+        rgnPushNotif(title, text, 'social');
+      } catch (e) {}
+    };
+  }
+})();
+
+/* Кнопка уведомлений в «Ещё» и бейдж на tabbar */
+(function(){
+  // MORE_BTNS
+  if (typeof MORE_BTNS !== 'undefined' && Array.isArray(MORE_BTNS)) {
+    MORE_BTNS.push(['🔔', 'Уведомления', function(){ rgnOpenNotifs(); }]);
+    MORE_BTNS.push(['⭐', 'Витрина', function(){ rgnOpenMyShowcase(); }]);
+  }
+  // бейдж рядом с «Ещё»
+  setTimeout(() => {
+    const tb = document.getElementById('tabbar');
+    if (!tb) return;
+    const more = Array.from(tb.querySelectorAll('button')).find(b => /Ещё|More|☰/.test(b.textContent || ''));
+    if (!more) return;
+    more.style.position = 'relative';
+    if (document.getElementById('rgn-ntf-badge')) return;
+    const b = document.createElement('span');
+    b.id = 'rgn-ntf-badge';
+    b.className = 'rgn-badge';
+    more.appendChild(b);
+    more.addEventListener('click', () => setTimeout(rgnUpdNotifBadge, 300));
+  }, 1000);
+})();
+
+/* При продаже/покупке — тег source */
+(function(){
+  const _buy = typeof buyFromMarket === 'function' ? buyFromMarket : null;
+  if (_buy) {
+    buyFromMarket = function(key) {
+      const before = playerCollection.length;
+      const r = _buy.apply(this, arguments);
+      setTimeout(() => {
+        for (let i = before; i < playerCollection.length; i++) rgnTagPlate(playerCollection[i], 'market');
+        if (typeof saveCollection === 'function') saveCollection();
+        rgnPushNotif('🛒 Покупка', 'Номер добавлен в коллекцию', 'plate');
+      }, 600);
+      return r;
+    };
+  }
+})();
+
+/* Совместимость: если игрок уже в сети при hot-reload */
+if (typeof currentUser !== 'undefined' && currentUser) {
+  setTimeout(() => {
+    rgnSetOnline();
+    rgnListenNotifs();
+    rgnPushRankStats();
+    if (!rgnHbTimer) rgnHbTimer = setInterval(rgnHeartbeat, 120000);
+  }, 800);
+}
+
+
+/* ---- Presence: точная подстановка в openChats ---- */
+(function(){
+  if (typeof openChats !== 'function') return;
+  const _prev = openChats;
+  openChats = function(){
+    // строим список с presence
+    if(!currentUser) return alert('Сначала войдите!');
+    const rq = Object.keys(RQ||{});
+    const bd = n => '<b style="background:#fe2c55;border-radius:10px;padding:2px 8px;color:#fff">' + (n > 99 ? '99+' : n) + '</b>';
+    let h = '<h3>💬 Чаты</h3><button onclick="goTab(openChat)" style="background:#2a2f45;display:flex;justify-content:space-between"><span>🌐 Общий чат</span>' + ((typeof gcUnread!=='undefined' && gcUnread) ? bd(gcUnread) : '') + '</button>';
+    if(rq.length) h += '<p style="margin:12px 0 2px"><b>Заявки в друзья</b></p>' + rq.map(k=>'<div class="list-item"><span>👤 '+esc((RQ[k]&&RQ[k].name)||k)+'</span><span><button onclick="acceptReq(\''+k+'\')" style="width:auto;padding:5px 10px;margin:0 4px 0 0">Принять</button><button onclick="declineReq(\''+k+'\')" style="width:auto;padding:5px 10px;margin:0;background:#555">✕</button></span></div>').join('');
+    h += '<p style="margin:12px 0 2px"><b>Друзья</b></p>';
+    const rows = Object.keys(FR||{}).map(k=>({k:k, ib:(IB&&IB[k])||{}})).sort((a,b)=>(b.ib.t||0)-(a.ib.t||0));
+    if(!rows.length) h += '<p style="color:#aaa">Друзей пока нет</p>';
+    else h += rows.map(r=>{
+      const pr = (typeof RGN_PRESENCE!=='undefined' && RGN_PRESENCE[r.k]) || null;
+      const on = typeof rgnIsOnline==='function' && rgnIsOnline(pr);
+      const st = on ? '<span class="rgn-online"></span>В сети' : '<span class="rgn-offline"></span>' + (pr&&pr.last ? rgnFmtRel(pr.last) : 'не в сети');
+      return '<div class="list-item" onclick="goTab(()=>openDM(\''+r.k+'\'))" style="cursor:pointer"><span>👤 <b>'+esc(FR[r.k])+'</b><br><small style="color:#aaa">'+st+(r.ib.last?' · '+esc(r.ib.last):'')+'</small></span><span>'+(r.ib.n?bd(r.ib.n):'')+'<a onclick="event.stopPropagation();rmFriend(\''+r.k+'\')" style="margin-left:8px;color:#888;cursor:pointer">✕</a></span></div>';
+    }).join('');
+    h += '<button onclick="addFriend()" style="background:#2ecc71;margin-top:8px">➕ Добавить друга</button>';
+    box('chats-modal', h);
+  };
+})();
+
+console.log('[РГН] Доработки v6 загружены: карточки, витрина, presence, рейтинги, glass, уведомления');
+})();
 </script>
+<script id="rgn-update-next">
+/* РГН — обновление интерфейса и игровых окон */
+(function () {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const money = () => (typeof balance === 'number' && typeof formatMoney === 'function') ? formatMoney(balance) : '—';
+  const balanceLine = () => '<div class="rgn-live-balance">💳 Ваш баланс: <b>' + money() + '</b></div>';
+
+  const style = document.createElement('style');
+  style.textContent = `
+    .rgn-live-balance{margin:8px 0 12px;padding:10px 12px;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:rgba(255,255,255,.055);text-align:left;color:#aeb5ca;font-size:.84rem}
+    .rgn-live-balance b{float:right;color:#fff;font-variant-numeric:tabular-nums}
+    .rgn-car-preview{width:100%;margin:8px 0 12px;padding:8px;border:1px solid rgba(255,255,255,.1);border-radius:14px;background:rgba(255,255,255,.04)}
+    .rgn-car-preview>*{max-width:100%}
+    .rgn-playing-card{display:inline-grid;place-items:center;min-width:42px;height:58px;margin:3px;padding:4px 7px;border-radius:8px;background:linear-gradient(145deg,#fff,#e9edf5);color:#151722;font-weight:900;font-size:1.2rem;box-shadow:0 3px 9px #0008;animation:rgnCardIn .22s ease-out}
+    .rgn-playing-card.red{color:#d62f45}
+    @keyframes rgnCardIn{from{opacity:0;transform:translateY(-9px) rotate(-5deg)}to{opacity:1;transform:none}}
+    .rgn-race-landscape{position:fixed;inset:0;z-index:10050;background:#080a10;color:#fff;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:24px}
+  `;
+  document.head.appendChild(style);
+
+  // Баланс в окнах, где игрок управляет деньгами.
+  if (typeof box === 'function' && !window.__rgnBoxBalanceWrapped) {
+    const originalBox = box;
+    box = function(id, content) {
+      const finance = /pig|safe|bank|deposit|vault|копил|сейф|банк|вклад/i.test(String(id));
+      if (finance && typeof content === 'string' && !content.includes('rgn-live-balance')) {
+        content = balanceLine() + content;
+      }
+      return originalBox(id, content);
+    };
+    window.__rgnBoxBalanceWrapped = true;
+  }
+
+  // Убираем повторяющиеся пункты в меню «Ещё», переименовываем нужные пункты.
+  if (typeof openMore === 'function' && !window.__rgnMoreWrapped) {
+    const oldOpenMore = openMore;
+    openMore = function() {
+      if (Array.isArray(MORE_BTNS)) {
+        const unique = new Set();
+        for (let i = MORE_BTNS.length - 1; i >= 0; i--) {
+          const item = MORE_BTNS[i];
+          if (!item) { MORE_BTNS.splice(i,1); continue; }
+          if (item[1] === 'Позвать друзей') item[1] = 'Пригласить друга';
+          if (item[1] === 'Охотник') item[1] = 'Охотник за номерами';
+          if (item[1] === 'Топ богачей' || item[1] === 'Топ') item[1] = 'Forbes';
+          const key = String(item[1] || '').trim().toLowerCase();
+          if (unique.has(key)) MORE_BTNS.splice(i,1); else unique.add(key);
+        }
+      }
+      oldOpenMore();
+      const grid = document.querySelector('#more-modal .mgrid');
+      if (!grid) return;
+      const seen = new Set();
+      [...grid.querySelectorAll('button')].forEach(btn => {
+        const label = (btn.innerText || '').replace(/\s+/g, ' ').trim();
+        if (/^Позвать друзей$/i.test(label)) btn.innerText = '📤 Пригласить друга';
+        if (/^Топ$/i.test(label)) btn.innerText = '🏆 Forbes';
+        if (/^Охотник$/i.test(label)) btn.innerText = '🎯 Охотник за номерами';
+        const key = (btn.innerText || '').replace(/\s+/g, ' ').trim().toLowerCase();
+        if (seen.has(key)) btn.remove(); else seen.add(key);
+      });
+      if (Array.isArray(MORE_BTNS)) {
+        const added = new Set();
+        [...grid.querySelectorAll('button')].forEach(b => added.add((b.innerText || '').replace(/\s+/g,' ').trim().toLowerCase()));
+        MORE_BTNS.forEach(item => {
+          const label = String(item[1] || '').toLowerCase();
+          if (added.has(label) || (label.includes('позвать') && [...added].some(x=>x.includes('пригласить')))) return;
+        });
+      }
+    };
+    window.__rgnMoreWrapped = true;
+  }
+
+  // Ссылка приглашения ведёт на карточку приложения RuStore.
+  if (typeof shareGame === 'function') {
+    shareGame = function() {
+      const url = 'https://www.rustore.ru/catalog/app/ru.deadk1ra.gosnomera';
+      const message = 'Приглашаю тебя в Рулетку Гос Номеров! Скачивай в RuStore: ' + url;
+      if (navigator.share) navigator.share({title:'Рулетка Гос Номеров', text:message, url}).catch(()=>{});
+      else if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(message).then(()=>toastQ('📤 Ссылка скопирована','Отправь её другу')).catch(()=>prompt('Ссылка на РГН:',url));
+      } else prompt('Ссылка на РГН:',url);
+    };
+  }
+
+  // Охотник: htGet объявлен как const — нельзя переназначать. Читаем через rgnHunterGet.
+  window.rgnHunterGet = function() {
+    try {
+      const raw = (typeof htKey === 'function') ? localStorage.getItem(htKey()) : null;
+      const r = raw ? JSON.parse(raw) : { max: 0, q: '' };
+      if (typeof r.max !== 'number') r.max = Number(r.max) || 0;
+      if (typeof r.q !== 'string') r.q = '';
+      if (typeof r.exact !== 'string') r.exact = '';
+      return r;
+    } catch (e) {
+      return { max: 0, q: '', exact: '' };
+    }
+  };
+  if (typeof htSet === 'function') {
+    htSet = function() {
+      const r = rgnHunterGet();
+      const a = prompt('Максимальная цена (0 = любая):', String(r.max || 0));
+      if (a === null) return;
+      const q = prompt('Номер или регион содержит (пусто = любой), например 777:', r.q || '');
+      if (q === null) return;
+      const exact = prompt('Точный номер (например А777АА 777). Пусто = не использовать точный поиск:', r.exact || '');
+      if (exact === null) return;
+      localStorage.setItem(htKey(), JSON.stringify({
+        max: Math.max(0, Math.floor(Number(String(a).replace(/\s/g, '')) || 0)),
+        q: String(q).trim().toLowerCase(),
+        exact: String(exact).trim().toLowerCase().replace(/\s+/g, ' ')
+      }));
+      openHunter();
+    };
+  }
+  if (typeof openHunter === 'function') {
+    const oldOpenHunter = openHunter;
+    openHunter = function() {
+      oldOpenHunter();
+      const modal = document.getElementById('hunt-modal');
+      if (!modal) return;
+      const content = modal.querySelector('.modal-content');
+      if (!content) return;
+      const p = content.querySelector('p');
+      if (!p) return;
+      const r = rgnHunterGet();
+      if (!/Точный номер:/i.test(p.innerHTML)) {
+        p.innerHTML += '<br>Точный номер: <b>' + (r.exact ? esc(r.exact) : 'не задан') + '</b>';
+      }
+    };
+  }
+  // Доп. уведомление только по точному совпадению (базовый max/q уже слушает оригинал через htGet).
+  try {
+    db.ref('market').on('child_added', snap => {
+      if (!currentUser || (typeof HT_READY !== 'undefined' && !HT_READY)) return;
+      const lot = snap.val();
+      const rule = rgnHunterGet();
+      if (!lot || !lot.item || ukey(lot.seller) === ukey(currentUser)) return;
+      if (!rule.exact) return;
+      const number = (String(lot.item.plate || '') + ' ' + String(lot.item.region || '')).toLowerCase().replace(/\s+/g, ' ').trim();
+      if (number !== rule.exact) return;
+      if (rule.max && Number(lot.ask || lot.item.price || 0) > rule.max) return;
+      toastQ('🎯 Охотник: точный номер', number.toUpperCase() + ' появился на рынке');
+    });
+  } catch (e) {}
+
+  // Копилка всегда показывает актуальный баланс и сумму до ввода.
+  if (typeof openPiggy === 'function') {
+    const oldOpenPiggy = openPiggy;
+    openPiggy = async function() {
+      await oldOpenPiggy();
+      const modal = document.getElementById('pig-modal');
+      const content = modal && modal.querySelector('.modal-content');
+      if (content && !content.querySelector('.rgn-live-balance')) content.insertAdjacentHTML('afterbegin', balanceLine());
+    };
+  }
+
+  // Более наглядный гараж: карточка машины с её текущим 3D/2D-превью из проекта.
+  if (typeof openGarage === 'function') {
+    const oldOpenGarage = openGarage;
+    openGarage = function() {
+      oldOpenGarage();
+      const modal = document.getElementById('garage-modal');
+      const content = modal && modal.querySelector('.modal-content');
+      if (!content) return;
+      content.querySelectorAll('.list-item').forEach((row, i) => {
+        if (!garage[i] || row.querySelector('.rgn-car-preview')) return;
+        const preview = document.createElement('div');
+        preview.className = 'rgn-car-preview';
+        try { preview.innerHTML = carView(garage[i]); } catch(e) { preview.textContent = (CARS[garage[i].m] || CARS[0]).n; }
+        row.insertAdjacentElement('beforebegin', preview);
+      });
+    };
+  }
+
+  // Сапёр: снижаем выплаты и показываем понятную вероятность безопасного хода.
+  if (typeof mnCash === 'function' && !window.__rgnMinesAdjusted) {
+    mnCash = function() {
+      if (!MN || MN.over || MN.safe < 1) return;
+      const base = Math.floor(MN.bet * mnMul(MN.safe, MN.b));
+      const win = Math.floor(base * 0.65);
+      mnEnd(win, '✅ Забрал ' + formatMoney(win) + ' · награда снижена для баланса экономики');
+    };
+    if (typeof mnShow === 'function') {
+      const oldMinesShow = mnShow;
+      mnShow = function() {
+        oldMinesShow();
+        const modal = document.getElementById('mn-modal');
+        const content = modal && modal.querySelector('.modal-content');
+        if (!content || !MN || MN.over) return;
+        const safeLeft = 25 - MN.b - MN.safe;
+        const totalLeft = 25 - MN.safe;
+        const safeChance = totalLeft > 0 ? Math.round(safeLeft / totalLeft * 100) : 0;
+        const hint = document.createElement('div');
+        hint.className = 'rgn-live-balance';
+        hint.textContent = '💡 Подсказка: вероятность безопасной клетки сейчас около ' + safeChance + '%. Точное расположение мин неизвестно.';
+        const grid = content.querySelector('div[style*="grid-template-columns"]');
+        if (grid) grid.insertAdjacentElement('beforebegin', hint);
+      };
+    }
+    window.__rgnMinesAdjusted = true;
+  }
+
+  // Карты блэкджека получают вид настоящих карт и анимацию появления.
+  if (typeof bjShow === 'function' && !window.__rgnBlackjackCards) {
+    const oldBjShow = bjShow;
+    bjShow = function() {
+      oldBjShow();
+      const modal = document.getElementById('bj-modal');
+      const content = modal && modal.querySelector('.modal-content');
+      if (!content || !BJ) return;
+      const renderHand = hand => hand.map((card,i) => {
+        if (!card || card.r === '🂠') return '<span class="rgn-playing-card">🂠</span>';
+        const red = /♥|♦/.test(card.r);
+        return '<span class="rgn-playing-card ' + (red?'red':'') + '">' + esc(card.r) + '</span>';
+      }).join('');
+      const ps = [...content.querySelectorAll('p')];
+      if (ps.length >= 2) {
+        ps[0].innerHTML = 'Дилер: ' + renderHand(BJ.d) + (BJ.over ? ' ('+bjVal(BJ.d)+')' : '');
+        ps[1].innerHTML = 'Ты: ' + renderHand(BJ.p) + ' ('+bjVal(BJ.p)+')';
+      }
+    };
+    window.__rgnBlackjackCards = true;
+  }
+
+  // Гонка не стартует на этом устройстве, пока экран не переведён в landscape.
+  if (typeof rcStart === 'function' && !window.__rgnRaceOrientationGate) {
+    const originalRaceStart = rcStart;
+    let pendingRace = null;
+    const isLandscape = () => window.matchMedia ? window.matchMedia('(orientation: landscape)').matches : window.innerWidth > window.innerHeight;
+    const continueRace = () => {
+      if (!pendingRace || !isLandscape()) return;
+      const args = pendingRace; pendingRace = null;
+      const gate = document.getElementById('rgn-landscape-gate');
+      if (gate) gate.remove();
+      originalRaceStart.apply(null,args);
+    };
+    rcStart = function() {
+      const args = [...arguments];
+      if (isLandscape()) return originalRaceStart.apply(null,args);
+      pendingRace = args;
+      let gate = document.getElementById('rgn-landscape-gate');
+      if (!gate) {
+        gate = document.createElement('div');
+        gate.id = 'rgn-landscape-gate';
+        gate.className = 'rgn-race-landscape';
+        gate.innerHTML = '<div style="font-size:3rem">📱↔️</div><h2>Поверни телефон горизонтально</h2><p style="color:#aab1c5">Гонка начнётся автоматически после поворота экрана.</p><button id="rgn-landscape-cancel" style="max-width:260px">Отмена гонки</button>';
+        document.body.appendChild(gate);
+        gate.querySelector('#rgn-landscape-cancel').onclick = () => { pendingRace = null; gate.remove(); if (typeof rcCancel === 'function') rcCancel(); };
+      }
+    };
+    window.addEventListener('orientationchange', () => setTimeout(continueRace,250));
+    window.addEventListener('resize', () => setTimeout(continueRace,150));
+    window.__rgnRaceOrientationGate = true;
+  }
+
+  console.log('[РГН] Обновление интерфейса подключено');
+})();
+</script>
+<script id="rgn-major-update">
+/* ===== РГН Major Update: автосалон, ГАИ, сапёр, охотник, NPC, гонки, достижения ===== */
+(function () {
+  'use strict';
+  if (window.__RGN_MAJOR__) return;
+  window.__RGN_MAJOR__ = true;
+
+  const $ = id => document.getElementById(id);
+  const money = v => (typeof formatMoney === 'function' ? formatMoney(v) : (v + ' ₽'));
+  const esc2 = t => String(t == null ? '' : t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+  /* ---------- styles ---------- */
+  const st = document.createElement('style');
+  st.id = 'rgn-major-css';
+  st.textContent = `
+.rgn-show-wrap{display:flex;flex-direction:column;gap:10px;width:100%}
+.rgn-class-tabs{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:4px 0 8px}
+.rgn-class-tabs .rgn-chip{padding:8px 12px;border-radius:999px;font-size:.78rem;font-weight:700;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);cursor:pointer;color:#c8cde0}
+.rgn-class-tabs .rgn-chip.on{background:linear-gradient(135deg,#5a6bff,#7b4dff);border-color:transparent;color:#fff}
+.rgn-car-grid{display:grid;grid-template-columns:1fr;gap:10px;max-height:52vh;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:2px}
+@media(min-width:420px){.rgn-car-grid{grid-template-columns:1fr 1fr}}
+.rgn-car-card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:10px;text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.rgn-car-card .prev{border-radius:12px;background:rgba(0,0,0,.35);padding:6px;margin-bottom:8px;min-height:90px}
+.rgn-car-card .nm{font-weight:800;font-size:.95rem;margin:2px 0}
+.rgn-car-card .cls{font-size:.72rem;color:#8a8fa6;margin-bottom:4px}
+.rgn-car-card .pr{color:#ffcb45;font-weight:800;font-size:.9rem;margin:4px 0 8px}
+.rgn-car-card .owned{display:inline-block;padding:4px 10px;border-radius:999px;font-size:.72rem;font-weight:700;background:rgba(61,220,132,.15);color:#3ddc84;border:1px solid rgba(61,220,132,.35)}
+.rgn-car-card button.buy{width:100%;padding:10px;border:none;border-radius:12px;font-weight:800;background:linear-gradient(135deg,#34d57a,#16a34a);color:#fff;cursor:pointer}
+.rgn-car-card button.buy:disabled{opacity:.45;cursor:not-allowed;background:#333}
+.rgn-ms{display:grid;grid-template-columns:repeat(9,1fr);gap:3px;max-width:360px;margin:8px auto;user-select:none}
+.rgn-ms .c{aspect-ratio:1;display:grid;place-items:center;font-weight:800;font-size:.85rem;border-radius:6px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);cursor:pointer;color:#e8ebf7;transition:transform .08s,background .15s}
+.rgn-ms .c:active{transform:scale(.94)}
+.rgn-ms .c.open{background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.06);cursor:default}
+.rgn-ms .c.flag{background:rgba(241,196,15,.18);border-color:rgba(241,196,15,.4)}
+.rgn-ms .c.boom{background:rgba(231,76,60,.45);border-color:#e74c3c}
+.rgn-ms .c.n1{color:#5b9dff}.rgn-ms .c.n2{color:#3ddc84}.rgn-ms .c.n3{color:#ff6b6b}
+.rgn-ms .c.n4{color:#a370f7}.rgn-ms .c.n5{color:#ffcb45}.rgn-ms .c.n6{color:#00f2fe}
+.rgn-npc-tag{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:6px;font-size:.65rem;font-weight:700;background:rgba(124,140,255,.2);color:#9ab0ff;border:1px solid rgba(124,140,255,.35);vertical-align:middle}
+.rgn-gai-toast{position:fixed;left:12px;right:12px;bottom:calc(90px + env(safe-area-inset-bottom,0px));z-index:9000;padding:14px 16px;border-radius:16px;background:linear-gradient(180deg,#1a1d2e,#101218);border:1px solid rgba(239,68,68,.45);box-shadow:0 12px 40px rgba(0,0,0,.55);color:#fff;font-size:.9rem;animation:rgnIn .25s ease}
+@keyframes rgnIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+`;
+  document.head.appendChild(st);
+
+  const CLASS_LABEL = {
+    sedan: 'Седан', suv: 'Внедорожник', sport: 'Спорткар', hatch: 'Хэтчбек',
+    van: 'Фургон', bus: 'Автобус', truck: 'Самосвал', tractor: 'Трактор', moto: 'Мото'
+  };
+  const CLASS_ORDER = ['all','sedan','suv','sport','hatch','van','bus','truck','moto','tractor'];
+
+  /* ========== 1. АВТОСАЛОН ========== */
+  let SHOW_CLASS = 'all';
+  function ownedModelSet() {
+    const set = new Set();
+    if (Array.isArray(garage)) garage.forEach(c => { if (c && typeof c.m === 'number') set.add(c.m); });
+    return set;
+  }
+  function demoCar(i) {
+    const colors = (typeof TUNE !== 'undefined' && TUNE.color) ? TUNE.color : ['#c0392b','#2980b9','#27ae60','#f39c12','#8e44ad','#ecf0f1','#2c3e50'];
+    return { m: i, color: colors[i % colors.length], tint: 0, lights: '#fff6c8', neon: '', low: 0, plate: null };
+  }
+  window.rgnShowFilter = function (cls) {
+    SHOW_CLASS = cls || 'all';
+    openShowroom();
+  };
+  openShowroom = function () {
+    if (!currentUser) return alert('Сначала войдите!');
+    if (!Array.isArray(CARS) || !CARS.length) return alert('Каталог автомобилей пуст');
+    const owned = ownedModelSet();
+    const counts = {};
+    CARS.forEach(m => { const t = m.t || 'sedan'; counts[t] = (counts[t] || 0) + 1; });
+    const tabs = CLASS_ORDER.filter(k => k === 'all' || counts[k])
+      .map(k => {
+        const label = k === 'all' ? 'Все' : (CLASS_LABEL[k] || k);
+        const n = k === 'all' ? CARS.length : counts[k];
+        return '<span class="rgn-chip' + (SHOW_CLASS === k ? ' on' : '') + '" onclick="rgnShowFilter(\'' + k + '\')">' + label + ' (' + n + ')</span>';
+      }).join('');
+    const list = CARS.map((m, i) => ({ m, i }))
+      .filter(x => SHOW_CLASS === 'all' || (x.m.t || 'sedan') === SHOW_CLASS)
+      .sort((a, b) => (a.m.p || 0) - (b.m.p || 0));
+    const cards = list.map(({ m, i }) => {
+      let prev = '';
+      try {
+        if (typeof carView === 'function') prev = carView(demoCar(i));
+        else if (typeof carSvg === 'function') prev = carSvg(demoCar(i));
+        else prev = '<div style="padding:20px;font-size:2rem">🚗</div>';
+      } catch (e) { prev = '<div style="padding:20px;font-size:2rem">🚗</div>'; }
+      const isOwned = owned.has(i);
+      const cls = CLASS_LABEL[m.t] || m.t || 'авто';
+      return '<div class="rgn-car-card">' +
+        '<div class="prev">' + prev + '</div>' +
+        '<div class="nm">' + esc2(m.n) + '</div>' +
+        '<div class="cls">' + esc2(cls) + '</div>' +
+        '<div class="pr">' + money(m.p) + '</div>' +
+        (isOwned
+          ? '<span class="owned">✓ В гараже</span><button class="buy" style="margin-top:8px;background:linear-gradient(135deg,#5a6bff,#7b4dff)" onclick="buyCar(' + i + ')">Купить ещё</button>'
+          : '<button class="buy" onclick="buyCar(' + i + ')">Купить</button>') +
+        '</div>';
+    }).join('');
+    const html = '<div class="rgn-show-wrap"><h3 style="margin:0;text-align:center">🛒 Автосалон</h3>' +
+      '<div class="rgn-class-tabs">' + tabs + '</div>' +
+      '<div class="rgn-car-grid">' + (cards || '<p style="color:#8a8fa6;text-align:center">Нет машин в этом классе</p>') + '</div></div>';
+    if (typeof box === 'function') box('show-modal', html);
+    else {
+      let m = $('show-modal');
+      if (!m) { m = document.createElement('div'); m.id = 'show-modal'; m.className = 'modal'; document.body.appendChild(m); }
+      m.innerHTML = '<div class="modal-content">' + html + '<button onclick="closeModal(\'show-modal\')">Закрыть</button></div>';
+      openModal('show-modal');
+    }
+  };
+
+  /* Улучшаем гараж — единый стиль карточек */
+  if (typeof openGarage === 'function') {
+    const _og = openGarage;
+    openGarage = function () {
+      _og.apply(this, arguments);
+      setTimeout(() => {
+        const modal = $('garage-modal');
+        const content = modal && modal.querySelector('.modal-content');
+        if (!content || content.dataset.rgnCards) return;
+        content.dataset.rgnCards = '1';
+        content.querySelectorAll('.list-item').forEach((row, i) => {
+          if (!garage || !garage[i] || row.querySelector('.rgn-car-preview')) return;
+          try {
+            const preview = document.createElement('div');
+            preview.className = 'rgn-car-preview prev';
+            preview.style.cssText = 'border-radius:12px;background:rgba(0,0,0,.35);padding:6px;margin:6px 0';
+            preview.innerHTML = (typeof carView === 'function' ? carView(garage[i]) : '');
+            row.insertAdjacentElement('beforebegin', preview);
+          } catch (e) {}
+        });
+      }, 60);
+    };
+  }
+
+  /* ========== 2. ГАИ ========== */
+  let GAI_LAST = 0;
+  const GAI_COOLDOWN = 8 * 60 * 1000; // 8 минут
+  const GAI_FINE_MIN = 1500, GAI_FINE_MAX = 8000;
+  function hasAnyPlate() {
+    if (Array.isArray(playerCollection) && playerCollection.some(p => p && p.plate)) return true;
+    if (Array.isArray(garage) && garage.some(c => c && c.plate && c.plate.plate)) return true;
+    return false;
+  }
+  function gaiCheck() {
+    if (!currentUser || typeof balance !== 'number') return;
+    if (Date.now() - GAI_LAST < GAI_COOLDOWN) return;
+    if (hasAnyPlate()) return;
+    // лёгкий шанс, чтобы не спамить
+    if (Math.random() > 0.35) return;
+    GAI_LAST = Date.now();
+    const fine = GAI_FINE_MIN + Math.floor(Math.random() * (GAI_FINE_MAX - GAI_FINE_MIN + 1));
+    const pay = Math.min(balance, fine);
+    if (typeof updateBalance === 'function') updateBalance(-pay);
+    const el = document.createElement('div');
+    el.className = 'rgn-gai-toast';
+    el.innerHTML = '<b>🚓 ГАИ</b><br>Остановка: на ТС нет государственного номера.<br>Штраф: <b style="color:#ff6b6b">' + money(pay) + '</b>' +
+      (pay < fine ? '<br><small>Не хватило средств — списано всё.</small>' : '');
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 7000);
+    try {
+      if (typeof rgnPushNotif === 'function') rgnPushNotif('🚓 ГАИ', 'Штраф ' + money(pay) + ' — нет номера', 'gai');
+      else if (typeof toastQ === 'function') toastQ('🚓 ГАИ', 'Штраф ' + money(pay));
+    } catch (e) {}
+    try { localStorage.setItem('gai_last_' + (typeof ukey === 'function' ? ukey(currentUser) : currentUser), String(GAI_LAST)); } catch (e) {}
+  }
+  try {
+    const raw = localStorage.getItem('gai_last_' + (currentUser ? (typeof ukey === 'function' ? ukey(currentUser) : currentUser) : ''));
+    if (raw) GAI_LAST = Number(raw) || 0;
+  } catch (e) {}
+  setInterval(gaiCheck, 90 * 1000);
+  // при «кататься» — проверка чаще
+  if (typeof driveCar === 'function') {
+    const _dc = driveCar;
+    driveCar = function (i) {
+      const c = garage && garage[i];
+      if (c && !(c.plate && c.plate.plate)) {
+        setTimeout(gaiCheck, 2500);
+      }
+      return _dc.apply(this, arguments);
+    };
+  }
+
+  /* ========== 3. КЛАССИЧЕСКИЙ САПЁР ========== */
+  const MS = { w: 9, h: 9, mines: 10, bet: 0, grid: null, open: null, flag: null, over: false, won: false, first: true };
+  function msIdx(x, y) { return y * MS.w + x; }
+  function msNeigh(x, y) {
+    const out = [];
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if (!dx && !dy) continue;
+      const nx = x + dx, ny = y + dy;
+      if (nx >= 0 && ny >= 0 && nx < MS.w && ny < MS.h) out.push([nx, ny]);
+    }
+    return out;
+  }
+  function msPlace(sx, sy) {
+    const total = MS.w * MS.h;
+    const banned = new Set([msIdx(sx, sy)]);
+    msNeigh(sx, sy).forEach(([x, y]) => banned.add(msIdx(x, y)));
+    const pool = [];
+    for (let i = 0; i < total; i++) if (!banned.has(i)) pool.push(i);
+    for (let i = pool.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const t = pool[i]; pool[i] = pool[j]; pool[j] = t;
+    }
+    MS.grid = Array(total).fill(0);
+    const n = Math.min(MS.mines, pool.length);
+    for (let i = 0; i < n; i++) MS.grid[pool[i]] = -1;
+    for (let y = 0; y < MS.h; y++) for (let x = 0; x < MS.w; x++) {
+      const i = msIdx(x, y);
+      if (MS.grid[i] === -1) continue;
+      let c = 0;
+      msNeigh(x, y).forEach(([nx, ny]) => { if (MS.grid[msIdx(nx, ny)] === -1) c++; });
+      MS.grid[i] = c;
+    }
+  }
+  function msFlood(x, y) {
+    const stack = [[x, y]];
+    while (stack.length) {
+      const [cx, cy] = stack.pop();
+      const i = msIdx(cx, cy);
+      if (MS.open[i] || MS.flag[i]) continue;
+      MS.open[i] = 1;
+      if (MS.grid[i] === 0) msNeigh(cx, cy).forEach(p => stack.push(p));
+    }
+  }
+  function msCheckWin() {
+    const total = MS.w * MS.h;
+    let opened = 0;
+    for (let i = 0; i < total; i++) if (MS.open[i]) opened++;
+    if (opened === total - MS.mines) {
+      MS.over = true; MS.won = true;
+      // сниженная награда
+      const win = Math.floor(MS.bet * (1.15 + MS.mines * 0.08));
+      if (typeof updateBalance === 'function') updateBalance(win);
+      if (typeof toastQ === 'function') toastQ('💣 Сапёр', 'Победа! +' + money(win));
+      else alert('Победа! +' + money(win));
+      msRender();
+    }
+  }
+  window.msClick = function (x, y, flagMode) {
+    if (MS.over) return;
+    const i = msIdx(x, y);
+    if (flagMode || (window.__msFlagMode)) {
+      if (MS.open[i]) return;
+      MS.flag[i] = MS.flag[i] ? 0 : 1;
+      msRender();
+      return;
+    }
+    if (MS.flag[i] || MS.open[i]) return;
+    if (MS.first) {
+      MS.first = false;
+      msPlace(x, y);
+    }
+    if (MS.grid[i] === -1) {
+      MS.open[i] = 1;
+      MS.over = true; MS.won = false;
+      // открыть все мины
+      for (let k = 0; k < MS.grid.length; k++) if (MS.grid[k] === -1) MS.open[k] = 1;
+      if (typeof toastQ === 'function') toastQ('💣 Сапёр', 'Мина! Ставка сгорела');
+      msRender();
+      return;
+    }
+    msFlood(x, y);
+    msCheckWin();
+    msRender();
+  };
+  window.msToggleFlag = function () {
+    window.__msFlagMode = !window.__msFlagMode;
+    msRender();
+  };
+  function msRender() {
+    const total = MS.w * MS.h;
+    let flags = 0;
+    for (let i = 0; i < total; i++) if (MS.flag[i]) flags++;
+    let grid = '<div class="rgn-ms">';
+    for (let y = 0; y < MS.h; y++) for (let x = 0; x < MS.w; x++) {
+      const i = msIdx(x, y);
+      let cls = 'c', txt = '';
+      if (MS.flag[i] && !MS.open[i]) { cls += ' flag'; txt = '🚩'; }
+      else if (MS.open[i]) {
+        cls += ' open';
+        if (MS.grid[i] === -1) { cls += ' boom'; txt = '💣'; }
+        else if (MS.grid[i] > 0) { cls += ' n' + Math.min(6, MS.grid[i]); txt = String(MS.grid[i]); }
+      }
+      grid += '<div class="' + cls + '" onclick="msClick(' + x + ',' + y + ')" oncontextmenu="event.preventDefault();msClick(' + x + ',' + y + ',true)">' + txt + '</div>';
+    }
+    grid += '</div>';
+    const status = MS.over
+      ? (MS.won ? '<b style="color:#3ddc84">Победа!</b>' : '<b style="color:#ff6b6b">Поражение</b>')
+      : ('Мин: ' + MS.mines + ' · Флаги: ' + flags + (window.__msFlagMode ? ' · <b>режим флага</b>' : ''));
+    const actions = MS.over
+      ? '<button class="btn-action" onclick="msNew(10)">🔁 Ещё раз (10 мин)</button><button class="btn-action" style="background:#555" onclick="msNew(15)">Сложный (15)</button>'
+      : '<button class="btn-action" style="background:#f1c40f;color:#111" onclick="msToggleFlag()">' + (window.__msFlagMode ? '🔓 Режим открытия' : '🚩 Режим флага') + '</button>' +
+        '<p class="rgn-muted" style="font-size:.75rem;margin-top:6px">Подсказка: долгий тап / ПКМ — флаг. Первая клетка всегда безопасна.</p>';
+    const html = '<h3>💣 Сапёр</h3><p style="text-align:center;font-size:.8rem;color:#8a8fa6">Ставка ' + money(MS.bet) + ' · ' + status + '</p>' + grid + actions;
+    if (typeof box === 'function') box('mn-modal', html);
+  }
+  window.msNew = function (mines) {
+    const bet = (typeof CS_BET === 'number' && CS_BET > 0) ? CS_BET : 1000;
+    if (typeof balance === 'number' && balance < bet) return (typeof toastQ === 'function' ? toastQ('💣 Сапёр', 'Недостаточно средств') : alert('Недостаточно средств'));
+    if (typeof updateBalance === 'function') updateBalance(-bet);
+    MS.mines = mines || 10;
+    MS.bet = bet;
+    MS.grid = null;
+    MS.open = Array(MS.w * MS.h).fill(0);
+    MS.flag = Array(MS.w * MS.h).fill(0);
+    MS.over = false; MS.won = false; MS.first = true;
+    window.__msFlagMode = false;
+    msRender();
+  };
+  // подменяем старый сапёр
+  if (typeof openMines === 'function') {
+    openMines = function () {
+      if (!currentUser) return alert('Сначала войдите!');
+      const bet = (typeof CS_BET === 'number' && CS_BET > 0) ? CS_BET : 1000;
+      const html = '<h3>💣 Классический сапёр</h3>' +
+        '<p style="font-size:.85rem;color:#8a8fa6;text-align:left">Поле 9×9. Откройте все безопасные клетки. Награды снижены для баланса экономики.</p>' +
+        '<p>Ставка: <b>' + money(bet) + '</b></p>' +
+        '<button class="btn-action" onclick="msNew(10)">Играть · 10 мин</button>' +
+        '<button class="btn-action" style="background:#e67e22" onclick="msNew(15)">Сложный · 15 мин</button>';
+      if (typeof box === 'function') box('mn-modal', html);
+    };
+  }
+  // старый mnCash уже мог быть уменьшен — оставляем совместимость
+  if (typeof mnCash === 'function') {
+    const _mc = mnCash;
+    mnCash = function () {
+      if (!MN || MN.over || MN.safe < 1) return;
+      const base = Math.floor(MN.bet * mnMul(MN.safe, MN.b));
+      const win = Math.floor(base * 0.55);
+      if (typeof mnEnd === 'function') mnEnd(win, '✅ Забрал ' + money(win) + ' (награда снижена)');
+      else _mc();
+    };
+  }
+
+  /* ========== 4. ОХОТНИК: точный номер + рулетка ========== */
+  const HUNT_SEEN = new Set();
+  function huntNorm(plate, region) {
+    return (String(plate || '') + ' ' + String(region || '')).toLowerCase().replace(/\s+/g, ' ').trim();
+  }
+  function huntExactRule() {
+    try {
+      if (typeof rgnHunterGet === 'function') return rgnHunterGet();
+      if (typeof htGet === 'function') {
+        const r = htGet();
+        if (typeof r.exact !== 'string') r.exact = '';
+        return r;
+      }
+    } catch (e) {}
+    return { max: 0, q: '', exact: '' };
+  }
+  function huntNotify(title, text, key) {
+    if (key && HUNT_SEEN.has(key)) return;
+    if (key) {
+      HUNT_SEEN.add(key);
+      if (HUNT_SEEN.size > 200) {
+        const arr = [...HUNT_SEEN];
+        arr.slice(0, 50).forEach(k => HUNT_SEEN.delete(k));
+      }
+    }
+    if (typeof toastQ === 'function') toastQ(title, text);
+    else if (typeof toast === 'function') toast(title + ': ' + text);
+    else alert(title + '\n' + text);
+    try { if (typeof rgnPushNotif === 'function') rgnPushNotif(title, text, 'hunter'); } catch (e) {}
+  }
+  // рынок: точное совпадение
+  try {
+    db.ref('market').on('child_added', snap => {
+      if (!currentUser || (typeof HT_READY !== 'undefined' && !HT_READY)) return;
+      const lot = snap.val();
+      if (!lot || !lot.item) return;
+      if (typeof ukey === 'function' && ukey(lot.seller) === ukey(currentUser)) return;
+      const rule = huntExactRule();
+      if (!rule.exact) return;
+      const number = huntNorm(lot.item.plate, lot.item.region);
+      if (number !== rule.exact) return;
+      const ask = Number(lot.ask || lot.item.price || 0);
+      if (rule.max && ask > rule.max) return;
+      const key = 'm:' + snap.key + ':' + number;
+      huntNotify('🎯 Охотник: рынок', number.toUpperCase() + ' · ' + money(ask), key);
+    });
+  } catch (e) {}
+  // рулетка: после спина
+  if (typeof spinNumber === 'function') {
+    const _sp = spinNumber;
+    spinNumber = function () {
+      const before = Array.isArray(playerCollection) ? playerCollection.length : 0;
+      const r = _sp.apply(this, arguments);
+      setTimeout(() => {
+        try {
+          const rule = huntExactRule();
+          if (!rule.exact || !Array.isArray(playerCollection)) return;
+          for (let i = before; i < playerCollection.length; i++) {
+            const p = playerCollection[i];
+            if (!p) continue;
+            const number = huntNorm(p.plate, p.region);
+            if (number === rule.exact) {
+              huntNotify('🎯 Охотник: рулетка', 'Выпал ' + number.toUpperCase(), 's:' + number + ':' + (p.gotAt || Date.now()));
+            }
+          }
+        } catch (e) {}
+      }, 1100);
+      return r;
+    };
+  }
+  // UI настроек охотника — exact уже частично есть в rgn-update; усиливаем openHunter
+  if (typeof openHunter === 'function') {
+    const _oh = openHunter;
+    openHunter = function () {
+      _oh();
+      setTimeout(() => {
+        const modal = $('hunt-modal');
+        const content = modal && modal.querySelector('.modal-content');
+        if (!content) return;
+        const r = huntExactRule();
+        if (!content.querySelector('[data-rgn-exact]')) {
+          const div = document.createElement('div');
+          div.setAttribute('data-rgn-exact', '1');
+          div.className = 'rgn-card';
+          div.style.cssText = 'margin-top:8px;text-align:left;font-size:.85rem';
+          div.innerHTML = 'Точный номер: <b>' + (r.exact ? esc2(r.exact.toUpperCase()) : 'не задан') + '</b><br>' +
+            '<small style="color:#8a8fa6">Формат: А777АА 777 — следим за рынком и рулеткой</small>';
+          content.insertBefore(div, content.querySelector('button'));
+        }
+      }, 40);
+    };
+  }
+
+  /* ========== 5. NPC на рынке ========== */
+  const NPC_NAMES = ['АвтоДилер52', 'НомерОК', 'РегионТрейд', 'PlateShop', 'БашкирАвто', 'СтолицаНомеров', 'ГаражМаркет'];
+  const NPC_LETTERS = ['А','В','Е','К','М','Н','О','Р','С','Т','У','Х'];
+  const NPC_REGIONS = ['77','97','99','177','199','777','78','98','178','02','102','702','16','116','05','50','150'];
+  function npcRandPlate() {
+    const L = () => NPC_LETTERS[Math.floor(Math.random() * NPC_LETTERS.length)];
+    const D = () => Math.floor(Math.random() * 10);
+    const roll = Math.random();
+    let plate, rarityClass, rarityText, base;
+    if (roll < 0.04) {
+      const d = D(); plate = L() + d + d + d + L() + L();
+      rarityClass = 'legendary'; rarityText = '💎 ЛЕГЕНДАРНЫЕ ТРИ ЦИФРЫ'; base = 600000 + Math.floor(Math.random() * 900000);
+    } else if (roll < 0.12) {
+      plate = L() + D() + '0' + '0' + L() + L();
+      rarityClass = 'rare'; rarityText = '🔥 Редкая серия'; base = 25000 + Math.floor(Math.random() * 40000);
+    } else if (roll < 0.28) {
+      const a = D(), c = a; const b = (a + 1 + Math.floor(Math.random()*8)) % 10;
+      plate = L() + a + b + c + L() + L();
+      rarityClass = 'uncommon'; rarityText = '⭐ Зеркальный номер'; base = 8000 + Math.floor(Math.random() * 12000);
+    } else {
+      plate = L() + D() + D() + D() + L() + L();
+      rarityClass = 'common'; rarityText = 'Обычный номер'; base = 1500 + Math.floor(Math.random() * 4000);
+    }
+    const region = NPC_REGIONS[Math.floor(Math.random() * NPC_REGIONS.length)];
+    const mult = region === '777' || region === '77' ? 2.5 : 1;
+    return {
+      plate, region, rarityClass, rarityText,
+      price: Math.floor(base * mult),
+      style: 'standard', frame: 'standard',
+      src: 'npc', gotAt: Date.now()
+    };
+  }
+  let NPC_CACHE = [];
+  let NPC_LAST_REFRESH = 0;
+  function npcRefresh(force) {
+    const now = Date.now();
+    if (!force && now - NPC_LAST_REFRESH < 4 * 60 * 1000 && NPC_CACHE.length) return NPC_CACHE;
+    NPC_LAST_REFRESH = now;
+    const n = 4 + Math.floor(Math.random() * 4);
+    const used = new Set();
+    NPC_CACHE = [];
+    for (let i = 0; i < n; i++) {
+      let item, key, guard = 0;
+      do {
+        item = npcRandPlate();
+        key = huntNorm(item.plate, item.region);
+        guard++;
+      } while (used.has(key) && guard < 20);
+      used.add(key);
+      const seller = NPC_NAMES[Math.floor(Math.random() * NPC_NAMES.length)];
+      const ask = Math.max(500, Math.floor(item.price * (0.85 + Math.random() * 0.45)));
+      NPC_CACHE.push({
+        _npc: true,
+        _key: 'npc_' + key.replace(/\s/g, '_'),
+        seller: seller + ' [NPC]',
+        item: item,
+        ask: ask
+      });
+    }
+    return NPC_CACHE;
+  }
+  // покупка NPC-лота
+  window.buyNpcLot = function (key) {
+    const lot = NPC_CACHE.find(x => x._key === key);
+    if (!lot) return alert('Лот уже недоступен');
+    if (!currentUser) return alert('Сначала войдите!');
+    const price = Number(lot.ask || lot.item.price);
+    if (balance < price) return alert('Недостаточно средств!');
+    if (typeof updateBalance === 'function') updateBalance(-price);
+    const item = Object.assign({}, lot.item);
+    if (typeof rgnTagPlate === 'function') rgnTagPlate(item, 'market');
+    playerCollection.push(item);
+    if (typeof saveCollection === 'function') saveCollection();
+    NPC_CACHE = NPC_CACHE.filter(x => x._key !== key);
+    if (typeof toastQ === 'function') toastQ('🛒 Покупка', item.plate + ' ' + item.region);
+    if (typeof openMarketModal === 'function') openMarketModal();
+    try { if (typeof checkAch === 'function') checkAch(); } catch (e) {}
+  };
+  // патч отображения рынка
+  if (typeof openMarketModal === 'function') {
+    const _om = openMarketModal;
+    openMarketModal = function () {
+      _om.apply(this, arguments);
+      setTimeout(() => {
+        const container = $('market-items');
+        if (!container) return;
+        const npcs = npcRefresh(false);
+        // не дублировать
+        if (container.querySelector('[data-npc]')) return;
+        if (!npcs.length) return;
+        const block = document.createElement('div');
+        block.setAttribute('data-npc', '1');
+        block.innerHTML = npcs.map(m => {
+          const it = m.item;
+          return '<div style="background:#2a2a2a;padding:10px;margin-bottom:10px;border-radius:8px;display:flex;justify-content:space-between;align-items:center">' +
+            '<div><b style="font-size:16px">' + esc2(it.plate) + '</b> <span style="font-size:12px;color:#aaa">(' + esc2(it.region) + ')</span>' +
+            '<span class="rgn-npc-tag">NPC</span><br>' +
+            '<span style="font-size:12px;color:#f1c40f">' + esc2(it.rarityText || '') + '</span><br>' +
+            '<span style="font-size:11px;color:#888">Продавец: ' + esc2(m.seller) + '</span><br>' +
+            '<b>Цена: ' + money(m.ask) + '</b></div>' +
+            '<button onclick="buyNpcLot(\'' + m._key + '\')" style="background:#e74c3c;color:#fff;border:none;padding:6px 12px;border-radius:5px;font-weight:bold;font-size:0.8rem">Купить</button></div>';
+        }).join('');
+        // если «пусто» — заменить, иначе добавить сверху
+        if (/Рынок пуст|Загрузка/i.test(container.textContent || '')) container.innerHTML = '';
+        container.insertBefore(block, container.firstChild);
+      }, 350);
+    };
+  }
+
+  /* ========== 6–7. ГОНКИ: боты + ориентация обоих ========== */
+  const BOT_PROFILES = [
+    { name: 'Bot_Lada', pw: 0.85, rate: 1.8, car: 0 },
+    { name: 'Bot_Vesta', pw: 0.95, rate: 2.1, car: 1 },
+    { name: 'Bot_Camry', pw: 1.05, rate: 2.4, car: 3 },
+    { name: 'Bot_M5', pw: 1.15, rate: 2.8, car: 6 },
+    { name: 'Bot_Pro', pw: 1.25, rate: 3.2, car: 7 }
+  ];
+  if (typeof rcFind === 'function') {
+    const _rf = rcFind;
+    rcFind = function () {
+      const r = _rf.apply(this, arguments);
+      // если через 12с нет матча — предложить бота
+      setTimeout(() => {
+        try {
+          if (typeof RC !== 'undefined' && RC && RC.id) return; // уже в гонке
+          const searching = document.body.innerText && /поиск|ожидан|соперник/i.test(document.body.innerText);
+          // кнопка бота в активном модале
+          const modals = document.querySelectorAll('.modal');
+          let target = null;
+          modals.forEach(m => {
+            if (m.style.display === 'flex' && /гонка|race|соперник|поиск/i.test(m.textContent || '')) target = m;
+          });
+          if (!target) return;
+          const c = target.querySelector('.modal-content');
+          if (!c || c.querySelector('[data-rgn-bot]')) return;
+          const btn = document.createElement('button');
+          btn.setAttribute('data-rgn-bot', '1');
+          btn.className = 'btn-action';
+          btn.style.background = 'linear-gradient(135deg,#e67e22,#d35400)';
+          btn.textContent = '🤖 Гонка с ботом';
+          btn.onclick = function () { rgnRaceBot(); };
+          c.appendChild(btn);
+        } catch (e) {}
+      }, 12000);
+      return r;
+    };
+  }
+  window.rgnRaceBot = function () {
+    if (!currentUser) return alert('Сначала войдите!');
+    if (!Array.isArray(garage) || !garage.length) return alert('Нужна машина в гараже');
+    const bot = BOT_PROFILES[Math.floor(Math.random() * BOT_PROFILES.length)];
+    const id = 'bot_' + Date.now();
+    const room = {
+      a: currentUser,
+      b: bot.name,
+      bot: true,
+      botPw: bot.pw,
+      botRate: bot.rate,
+      t: Date.now()
+    };
+    // локальный старт с ботом
+    if (typeof rcStart === 'function') {
+      // помечаем как бот-матч
+      window.__rgnBotRace = bot;
+      rcStart(id, 'a', room);
+      // после старта подставим бота в RC
+      setTimeout(() => {
+        try {
+          if (typeof RC !== 'undefined' && RC) {
+            RC.bot = { v: 0, d: 0, pw: bot.pw, rate: bot.rate, name: bot.name };
+            RC.oppName = bot.name + ' [БОТ]';
+          }
+        } catch (e) {}
+      }, 200);
+    } else alert('Система гонок недоступна');
+  };
+  // ориентация: для PvP ждём готовность обоих (флаг в Firebase), для ботов — только свой
+  if (typeof rcStart === 'function') {
+    const _rs = rcStart;
+    rcStart = function (id, side, room) {
+      const isBot = !!(room && (room.bot || (typeof id === 'string' && id.indexOf('bot_') === 0) || window.__rgnBotRace));
+      const isLandscape = () => (window.matchMedia ? window.matchMedia('(orientation: landscape)').matches : window.innerWidth > window.innerHeight);
+      const startNow = () => {
+        window.__rgnBotRace = null;
+        _rs.apply(null, [id, side, room]);
+      };
+      if (isLandscape()) {
+        if (isBot || !id || String(id).indexOf('bot_') === 0) return startNow();
+        // PvP: пишем ready и ждём второго
+        try {
+          const readyRef = db.ref('races/' + id + '/orient/' + side);
+          readyRef.set(true);
+          readyRef.onDisconnect().remove();
+          const gate = document.createElement('div');
+          gate.id = 'rgn-landscape-gate';
+          gate.className = 'rgn-race-landscape';
+          gate.innerHTML = '<div style="font-size:3rem">📱↔️</div><h2>Ожидание соперника</h2><p style="color:#aab1c5">Держи телефон горизонтально. Старт, когда оба игрока готовы.</p><button id="rgn-landscape-cancel" style="max-width:260px">Отмена</button>';
+          document.body.appendChild(gate);
+          gate.querySelector('#rgn-landscape-cancel').onclick = () => {
+            try { readyRef.remove(); } catch (e) {}
+            gate.remove();
+            if (typeof rcCancel === 'function') rcCancel();
+          };
+          const both = db.ref('races/' + id + '/orient');
+          const onOrient = both.on('value', s => {
+            const v = s.val() || {};
+            if (v.a && v.b && isLandscape()) {
+              both.off('value', onOrient);
+              gate.remove();
+              startNow();
+            } else if (!isLandscape()) {
+              gate.querySelector('h2').textContent = 'Поверни телефон горизонтально';
+              try { readyRef.set(false); } catch (e) {}
+            } else {
+              gate.querySelector('h2').textContent = 'Ожидание соперника';
+              try { readyRef.set(true); } catch (e) {}
+            }
+          });
+          const onResize = () => {
+            if (!document.getElementById('rgn-landscape-gate')) {
+              window.removeEventListener('resize', onResize);
+              window.removeEventListener('orientationchange', onResize);
+              return;
+            }
+            if (isLandscape()) readyRef.set(true);
+            else readyRef.set(false);
+          };
+          window.addEventListener('resize', onResize);
+          window.addEventListener('orientationchange', onResize);
+        } catch (e) {
+          startNow();
+        }
+        return;
+      }
+      // не landscape
+      let pending = [id, side, room];
+      let gate = document.getElementById('rgn-landscape-gate');
+      if (!gate) {
+        gate = document.createElement('div');
+        gate.id = 'rgn-landscape-gate';
+        gate.className = 'rgn-race-landscape';
+        gate.innerHTML = '<div style="font-size:3rem">📱↔️</div><h2>Поверни телефон горизонтально</h2><p style="color:#aab1c5">Гонка начнётся после поворота экрана.</p><button id="rgn-landscape-cancel" style="max-width:260px">Отмена</button>';
+        document.body.appendChild(gate);
+        gate.querySelector('#rgn-landscape-cancel').onclick = () => {
+          pending = null;
+          gate.remove();
+          if (typeof rcCancel === 'function') rcCancel();
+        };
+      }
+      const tryCont = () => {
+        if (!pending || !isLandscape()) return;
+        const args = pending; pending = null;
+        const g = document.getElementById('rgn-landscape-gate');
+        if (g) g.remove();
+        rcStart.apply(null, args);
+      };
+      window.addEventListener('orientationchange', tryCont);
+      window.addEventListener('resize', tryCont);
+    };
+  }
+
+  /* ========== 8. ДОСТИЖЕНИЯ ========== */
+  const EXTRA_ACH = [
+    { id: 'car1', t: '🚗 Первая машина', d: 'Купите автомобиль в автосалоне', r: 8000, ok: () => Array.isArray(garage) && garage.length >= 1 },
+    { id: 'car5', t: '🚙 Коллекционер авто', d: 'Соберите 5 автомобилей', r: 25000, ok: () => Array.isArray(garage) && garage.length >= 5 },
+    { id: 'race1', t: '🏁 Первая победа в гонке', d: 'Выиграйте гонку', r: 12000, ok: () => !!(window.__rgnRaceWins >= 1) },
+    { id: 'race10', t: '🏆 10 побед в гонках', d: 'Победите в 10 гонках', r: 50000, ok: () => !!(window.__rgnRaceWins >= 10) },
+    { id: 'race100', t: '👑 100 побед в гонках', d: 'Победите в 100 гонках', r: 300000, ok: () => !!(window.__rgnRaceWins >= 100) },
+    { id: 'mkt1', t: '🛒 Первый лот на рынке', d: 'Выставьте номер на рынок', r: 5000, ok: () => !!window.__rgnMarketListed },
+    { id: 'sell1', t: '💰 Первая продажа', d: 'Продайте номер с рынка или из коллекции', r: 5000, ok: () => !!window.__rgnSoldOnce },
+    { id: 'rare3', t: '💎 Коллекционер редких', d: '3+ редких/эпических/легендарных номера', r: 30000, ok: () => Array.isArray(playerCollection) && playerCollection.filter(p => p && ['rare','epic','legendary','mythic','godlike'].indexOf(p.rarityClass) >= 0).length >= 3 },
+    { id: 'leg1', t: '🌟 Первый легендарный', d: 'Получите легендарный или выше номер', r: 20000, ok: () => Array.isArray(playerCollection) && playerCollection.some(p => p && (p.rarityClass === 'legendary' || p.rarityClass === 'godlike' || p.rarityClass === 'mythic')) },
+    { id: 'lvl5', t: '📈 Уровень 5', d: 'Достигните 5 уровня', r: 15000, ok: () => (typeof S !== 'undefined' && S && typeof lvl === 'function' ? lvl(S.xp) >= 5 : (typeof S !== 'undefined' && S && S.xp >= 1600)) },
+    { id: 'rich', t: '💼 Большое состояние', d: 'Накопите 5 000 000 ₽', r: 40000, ok: () => typeof balance === 'number' && balance >= 5000000 },
+    { id: 'col50', t: '📦 Полная полка', d: '50 номеров в коллекции', r: 60000, ok: () => Array.isArray(playerCollection) && playerCollection.length >= 50 }
+  ];
+  try {
+    const rw = localStorage.getItem('rgn_race_wins_' + (currentUser ? String(currentUser).toLowerCase() : ''));
+    window.__rgnRaceWins = Number(rw) || 0;
+  } catch (e) { window.__rgnRaceWins = 0; }
+
+  if (typeof checkAch === 'function') {
+    const _ca = checkAch;
+    checkAch = function () {
+      _ca.apply(this, arguments);
+      if (!currentUser || (typeof achLoaded !== 'undefined' && !achLoaded)) return;
+      EXTRA_ACH.forEach(a => {
+        try {
+          if (achDone && achDone[a.id]) return;
+          if (!a.ok()) return;
+          if (!achDone) achDone = {};
+          achDone[a.id] = true;
+          try { db.ref('users/' + ukey(currentUser) + '/ach/' + a.id).set(true); } catch (e) {}
+          if (typeof updateBalance === 'function') updateBalance(a.r);
+          if (typeof rgnPushNotif === 'function') rgnPushNotif('🏅 Достижение', a.t + ' (+' + money(a.r) + ')', 'ach');
+          else if (typeof toastQ === 'function') toastQ('🏅 ' + a.t, '+' + money(a.r));
+          else alert('🏅 Достижение: ' + a.t + '\n+' + money(a.r));
+        } catch (e) {}
+      });
+    };
+  }
+  // хуки прогресса
+  if (typeof buyCar === 'function') {
+    const _bc = buyCar;
+    buyCar = function (i) {
+      const before = Array.isArray(garage) ? garage.length : 0;
+      const r = _bc.apply(this, arguments);
+      setTimeout(() => { try { checkAch(); } catch (e) {} }, 300);
+      return r;
+    };
+  }
+  if (typeof putOnMarket === 'function') {
+    const _pm = putOnMarket;
+    putOnMarket = function () {
+      window.__rgnMarketListed = true;
+      try { localStorage.setItem('rgn_mkt_' + String(currentUser || '').toLowerCase(), '1'); } catch (e) {}
+      const r = _pm.apply(this, arguments);
+      setTimeout(() => { try { checkAch(); } catch (e) {} }, 200);
+      return r;
+    };
+  }
+  if (typeof mkGo === 'function') {
+    const _mg = mkGo;
+    mkGo = function () {
+      window.__rgnMarketListed = true;
+      const r = _mg.apply(this, arguments);
+      setTimeout(() => { try { checkAch(); } catch (e) {} }, 200);
+      return r;
+    };
+  }
+  if (typeof sellSelectedPlate === 'function') {
+    const _ss = sellSelectedPlate;
+    sellSelectedPlate = function () {
+      window.__rgnSoldOnce = true;
+      const r = _ss.apply(this, arguments);
+      setTimeout(() => { try { checkAch(); } catch (e) {} }, 200);
+      return r;
+    };
+  }
+  // учёт побед в гонках — патч при финише через перехват частых точек
+  setInterval(() => {
+    try {
+      if (typeof RC !== 'undefined' && RC && RC.over && RC.fin !== undefined && !RC.__rgnCounted) {
+        RC.__rgnCounted = true;
+        const oppFin = RC.ofin;
+        if (oppFin == null || RC.fin < oppFin) {
+          window.__rgnRaceWins = (window.__rgnRaceWins || 0) + 1;
+          try { localStorage.setItem('rgn_race_wins_' + String(currentUser || '').toLowerCase(), String(window.__rgnRaceWins)); } catch (e) {}
+          try { checkAch(); } catch (e) {}
+        }
+      }
+    } catch (e) {}
+  }, 1500);
+
+  // показать EXTRA_ACH в топе
+  if (typeof openTop === 'function') {
+    const _ot = openTop;
+    openTop = function () {
+      _ot.apply(this, arguments);
+      setTimeout(() => {
+        const modal = $('top-modal');
+        const content = modal && modal.querySelector('.modal-content');
+        if (!content || content.querySelector('[data-extra-ach]')) return;
+        const mine = EXTRA_ACH.map(a => ((achDone && achDone[a.id]) ? '✅ ' : '⬜ ') + a.t + ' (+' + money(a.r) + ')').join('<br>');
+        const div = document.createElement('div');
+        div.setAttribute('data-extra-ach', '1');
+        div.innerHTML = '<h3>🏅 Новые достижения</h3><div style="text-align:left;font-size:0.85rem" class="rgn-card">' + mine + '</div>';
+        content.insertBefore(div, content.querySelector('button'));
+      }, 200);
+    };
+  }
+
+  // периодическая проверка достижений
+  setInterval(() => { try { if (currentUser && typeof checkAch === 'function') checkAch(); } catch (e) {} }, 20000);
+
+  console.log('[РГН] Major update loaded: showroom, GAI, minesweeper, hunter, NPC, races, achievements');
+})();
+</script>
+
+</body>
+</html>
