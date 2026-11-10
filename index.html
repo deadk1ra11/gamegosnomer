@@ -497,6 +497,17 @@ body #tabbar{background:#0d0e13!important}
             <h3 id="auth-title" style="margin-top:0;">Авторизация</h3>
             <input type="text" id="username-input" placeholder="Никнейм..." maxlength="15">
             <input type="password" id="password-input" placeholder="Пароль...">
+         <label id="terms-row" style="display:none;align-items:flex-start;gap:8px;margin:8px 0;font-size:0.85rem;text-align:left">
+<input type="checkbox" id="terms-check" style="width:auto;margin:3px 0 0">
+<span>Я принимаю <a onclick="openRules()" style="color:#7c5cff;text-decoration:underline;cursor:pointer">правила и пользовательское соглашение</a></span>
+</label>
+<label id="pd-row" style="display:none;align-items:flex-start;gap:8px;margin:8px 0;font-size:0.85rem;text-align:left">
+<input type="checkbox" id="pd-check" style="width:auto;margin:3px 0 0">
+<span>Согласен на обработку моих данных (ник, прогресс, сообщения), как описано в разделе 6 правил</span>
+</label>
+<input type="checkbox" id="terms-check" style="width:auto;margin:3px 0 0">
+<span>Я принимаю <a onclick="openRules()" style="color:#7c5cff;text-decoration:underline;cursor:pointer">правила и пользовательское соглашение</a></span>
+</label>
             <button id="auth-submit-btn" class="btn-action" onclick="handleAuthSubmit()">Войти</button>
         </div>
     </div>
@@ -525,6 +536,11 @@ body #tabbar{background:#0d0e13!important}
                 <input type="number" id="transfer-amount" placeholder="Сумма...">
                 <button class="btn-action" style="background: #2ea44f;" onclick="transferMoneyToFriend()">Перевести</button>
             </div>
+            <div style="margin: 15px 0; text-align: left; border-top: 1px solid #333652; padding-top: 15px;">
+    <label style="font-size: 0.8rem; color: #a0a5ba; display: block; margin-bottom: 5px; font-weight: bold;">ПРАВИЛА И СОГЛАШЕНИЕ:</label>
+    <div id="terms-status" style="font-size:0.8rem;color:#8b92ad;margin-bottom:6px"></div>
+    <button class="btn-action" style="background: #7c5cff;" onclick="openRules()">📜 Читать правила</button>
+</div>
             <button class="btn-action" style="background: #e67e22; margin-top: 10px;" onclick="logoutUser()">Выйти из аккаунта</button>
             <button class="btn-action" style="background:#d73a49; margin-top: 10px;" onclick="resetAllData()">Сбросить мой прогресс</button>
             <button class="btn-action" style="background:#484f58; margin-top: 10px;" onclick="closeModal('settings-modal')">Закрыть</button>
@@ -635,6 +651,7 @@ body #tabbar{background:#0d0e13!important}
       <button class="btn-action" style="background:#8a63d2" onclick="ownerCreateCustomPlate()">Создать себе кастомный номер</button>
       <p style="font-size:.75rem;color:#aaa;text-align:left">Можно сделать номер без цифр, без букв или с любыми символами. Пустой регион убирает региональный блок.</p>
     </div>
+
 </div>
 
 <div class="admin-field">
@@ -2585,7 +2602,85 @@ if(!axOwner()) return;
 const n = axV('ax-name');
 if(!n) return alert('Введи ник игрока');
 if(ukey(n) === 'deadk1ra') return alert('Нельзя банить создателя');
-(on ? db.ref('bans/'+ukey(n)).set(true) : db.ref('bans/'+ukey(n)).remove()).then(()=>alert((on ? 'Забанен: ' : 'Разбанен: ') + n));
+if(on){
+  const reason = (axV('ax-val') || prompt('Причина бана:') || '').trim();
+  if(!reason) return alert('Укажи причину бана');
+  db.ref('bans/'+ukey(n)).set({
+    banned: true,
+    reason: reason.slice(0, 300),
+    by: currentUser,
+    at: Date.now()
+  }).then(()=>alert('Забанен: ' + n + '\nПричина: ' + reason));
+} else {
+  db.ref('bans/'+ukey(n)).remove().then(()=>alert('Разбанен: ' + n));
+}
+}
+function ownerBanPlayer(){
+if(!currentUser || currentUser.toLowerCase() !== 'deadk1ra') return alert('Только для создателя');
+const n = (document.getElementById('owner-ban-target') || {}).value || '';
+const reason = ((document.getElementById('owner-ban-reason') || {}).value || '').trim();
+const nick = String(n).trim();
+if(!nick) return alert('Введи ник игрока');
+if(ukey(nick) === 'deadk1ra') return alert('Нельзя банить создателя');
+if(!reason) return alert('Укажи причину бана');
+db.ref('bans/'+ukey(nick)).set({
+  banned: true,
+  reason: reason.slice(0, 300),
+  by: currentUser,
+  at: Date.now()
+}).then(()=>{
+  try { localStorage.setItem('ban_' + nick.toLowerCase(), 'true'); } catch(e){}
+  alert('Игрок ' + nick + ' забанен.\nПричина: ' + reason);
+  const r = document.getElementById('owner-ban-reason'); if(r) r.value = '';
+}).catch(e => alert('Ошибка бана: ' + (e.message || e)));
+}
+function ownerUnbanPlayer(){
+if(!currentUser || currentUser.toLowerCase() !== 'deadk1ra') return alert('Только для создателя');
+const n = ((document.getElementById('owner-ban-target') || {}).value || '').trim();
+if(!n) return alert('Введи ник игрока');
+db.ref('bans/'+ukey(n)).remove().then(()=>{
+  try { localStorage.removeItem('ban_' + n.toLowerCase()); } catch(e){}
+  alert('Игрок ' + n + ' разбанен');
+}).catch(e => alert('Ошибка: ' + (e.message || e)));
+}
+function ownerDeleteAccount(nickArg){
+if(!currentUser || currentUser.toLowerCase() !== 'deadk1ra') return alert('Только для создателя');
+const n = String(nickArg || ((document.getElementById('owner-ban-target') || {}).value || '')).trim();
+if(!n) return alert('Введи ник игрока');
+if(ukey(n) === 'deadk1ra') return alert('Нельзя удалить создателя');
+if(!confirm('Удалить аккаунт «' + n + '» ПОЛНОСТЬЮ?\nБудут стёрты: профиль, баланс, коллекция, статистика, сейф, шансы, аватар, баны, лоты на рынке.')) return;
+if(!confirm('Точно удалить «' + n + '»? Это необратимо.')) return;
+const k = ukey(n);
+const low = n.toLowerCase();
+const jobs = [
+  db.ref('users/' + low).remove(),
+  db.ref('all_players/' + low).remove(),
+  db.ref('bans/' + k).remove(),
+  db.ref('stats/' + k).remove(),
+  db.ref('collections/' + k).remove(),
+  db.ref('safes/' + k).remove(),
+  db.ref('chances/' + k).remove(),
+  db.ref('avatars/' + k).remove(),
+  db.ref('presence/' + k).remove()
+];
+db.ref('market').once('value').then(snap => {
+  const extra = [];
+  if(snap.exists()){
+    snap.forEach(child => {
+      const m = child.val();
+      if(m && ukey(m.seller) === k) extra.push(db.ref('market/' + child.key).remove());
+    });
+  }
+  return Promise.all(jobs.concat(extra));
+}).then(()=>{
+  try {
+    localStorage.removeItem('ban_' + low);
+    localStorage.removeItem('bal_' + low);
+    localStorage.removeItem('last_logged_user');
+  } catch(e){}
+  alert('Аккаунт «' + n + '» полностью удалён');
+  if(typeof loadAdminPlayersList === 'function') loadAdminPlayersList();
+}).catch(e => alert('Ошибка удаления: ' + (e.message || e)));
 }
 function axPass(){
 if(!axOwner()) return;
@@ -2601,9 +2696,7 @@ if(!axOwner()) return;
 const n = axV('ax-name');
 if(!n) return alert('Введи ник игрока');
 if(ukey(n) === 'deadk1ra') return alert('Нельзя удалить создателя');
-if(!confirm('Удалить игрока ' + n + ' полностью?')) return;
-const k = ukey(n);
-Promise.all([db.ref('users/'+n.toLowerCase()).remove(), db.ref('all_players/'+n.toLowerCase()).remove()].concat(['stats','collections','safes','chances','avatars'].map(p=>db.ref(p+'/'+k).remove()))).then(()=>{ alert('Игрок удалён'); loadAdminPlayersList(); });
+ownerDeleteAccount(n);
 }
 function axMoneyAll(){
 if(!axOwner()) return;
@@ -2631,32 +2724,57 @@ if(!a || Date.now() - a.t > 86400000 || localStorage.getItem('ann_seen') === Str
 localStorage.setItem('ann_seen', String(a.t));
 setTimeout(()=>alert('📢 ' + a.text), 1500);
 });
-function axOv(on){
+function axOv(on, reason){
 let o = document.getElementById('ban-ov');
 if(!on){ if(o) o.remove(); return; }
-if(o) return;
+const reasonText = reason ? String(reason).slice(0, 300) : 'Обратитесь к администратору';
+if(o){
+  const r = o.querySelector('[data-ban-reason]');
+  if(r) r.textContent = reasonText;
+  return;
+}
 o = document.createElement('div');
 o.id = 'ban-ov';
 o.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.95);z-index:99999;display:flex;flex-direction:column;gap:12px;align-items:center;justify-content:center;color:#fff;font-size:1.3rem;text-align:center;padding:20px';
-o.innerHTML = '🚫 Аккаунт заблокирован<small style="color:#aaa">Обратитесь к администратору</small><button onclick="localStorage.removeItem(\'last_logged_user\');location.reload()" style="padding:10px 24px;border:0;border-radius:8px">Выйти</button>';
+o.innerHTML = '🚫 Аккаунт заблокирован<div data-ban-reason style="color:#ffb4b4;font-size:1rem;max-width:420px;line-height:1.4;margin:4px 0 8px">'+esc(reasonText)+'</div><small style="color:#aaa">Вы не можете играть, пока бан не снят</small><button onclick="localStorage.removeItem(\'last_logged_user\');location.reload()" style="padding:10px 24px;border:0;border-radius:8px;margin-top:8px;cursor:pointer">Выйти</button>';
 document.body.appendChild(o);
 }
 const _lu5 = loginUser;
 loginUser = function(u){
 _lu5(u);
-db.ref('bans/'+ukey(u)).on('value', s=>axOv(!!s.val()));
+db.ref('bans/'+ukey(u)).on('value', s=>{
+  const v = s.val();
+  if(!v){ axOv(false); return; }
+  const reason = (typeof v === 'object' && v.reason) ? v.reason : (v === true ? '' : String(v));
+  axOv(true, reason || 'Аккаунт заблокирован администратором');
+});
 };
 const _oa = openAdmin;
 openAdmin = function(){
 _oa();
 if(!currentUser || currentUser.toLowerCase() !== 'deadk1ra') return;
 const m = document.querySelector('#admin-modal .modal-content');
-if(!m || document.getElementById('adm-extra')) return;
-const d = document.createElement('div');
-d.id = 'adm-extra';
-d.style.cssText = 'border:2px dashed #8a63d2;padding:10px;border-radius:8px;margin-bottom:12px';
-d.innerHTML = '<b style="color:#b794ff">🛠 Инструменты создателя</b><input id="ax-name" placeholder="Ник игрока" style="width:100%;margin:6px 0"><input id="ax-val" placeholder="Значение (пароль / сумма / текст)" style="width:100%;margin:6px 0"><div class="mgrid"><button onclick="axBan(true)">🚫<br>Бан</button><button onclick="axBan(false)">✅<br>Разбан</button><button onclick="axPass()">🔑<br>Пароль</button><button onclick="axDel()">🗑<br>Удалить игрока</button><button onclick="axMoneyAll()">💰<br>Всем деньги</button><button onclick="axAnnounce()">📢<br>Объявление</button><button onclick="axClearChat()">🧹<br>Очистить чат</button></div>';
-m.insertBefore(d, m.children[1] || null);
+if(!m) return;
+let d = document.getElementById('adm-extra');
+if(!d){
+  d = document.createElement('div');
+  d.id = 'adm-extra';
+  d.style.cssText = 'border:2px solid #7c5cff;padding:12px;border-radius:10px;margin-bottom:12px;background:#10121c';
+  m.insertBefore(d, m.children[1] || null);
+}
+d.innerHTML =
+  '<b style="color:#b794ff">🛠 Инструменты (только deadk1ra)</b>' +
+  '<input id="ax-name" placeholder="Ник игрока" style="width:100%;margin:6px 0;padding:10px;border-radius:8px;border:1px solid #333;background:#0d0f18;color:#fff">' +
+  '<input id="ax-val" placeholder="Причина бана / пароль / сумма / текст объявления" style="width:100%;margin:6px 0;padding:10px;border-radius:8px;border:1px solid #333;background:#0d0f18;color:#fff">' +
+  '<div class="mgrid">' +
+  '<button onclick="axBan(true)">🚫<br>Бан</button>' +
+  '<button onclick="axBan(false)">✅<br>Разбан</button>' +
+  '<button onclick="axPass()">🔑<br>Пароль</button>' +
+  '<button onclick="axDel()">🗑<br>Удалить</button>' +
+  '<button onclick="axMoneyAll()">💰<br>Всем деньги</button>' +
+  '<button onclick="axAnnounce()">📢<br>Объявление</button>' +
+  '<button onclick="axClearChat()">🧹<br>Очистить чат</button>' +
+  '</div>';
 };
 const _cs = document.createElement('style');
 _cs.textContent = '#chat-log a{font-size:1.2rem;padding:0 6px}';
@@ -2721,8 +2839,8 @@ const m = s.val();
 if(!m) return;
 let d = document.getElementById('m_'+s.key);
 if(!d){ d = document.createElement('div'); d.id = 'm_'+s.key; d.style.padding = '4px 0'; log.appendChild(d); }
-d.dataset.k = s.key; d.dataset.u = m.u; d.dataset.x = m.x;
-d.innerHTML = '<b>' + esc(m.u) + ':</b> ' + esc(m.x) + (m.e ? ' <i style="color:#888;font-size:0.7rem">(изм.)</i>' : '');
+d.dataset.k = s.key; d.dataset.u = m.u; d.dataset.x = m.x; d.dataset.e = m.e ? '1' : ''; d.dataset.t = m.t || '';
+d.innerHTML = chRow(m);
 log.scrollTop = log.scrollHeight;
 };
 chatRef.on('child_added', draw);
@@ -7908,13 +8026,19 @@ const FL = {
 A: ['ARM', 'linear-gradient(#d90012 33.3%,#0033a0 33.3% 66.6%,#f2a800 66.6%)'],
 B: ['BLR', 'linear-gradient(#cf101a 66.6%,#00af66 66.6%)']
 };
+let _flQ = 0;
 new MutationObserver(() => {
+if (_flQ) return;
+_flQ = requestAnimationFrame(() => {
+_flQ = 0;
 const c = rt.parentElement.querySelector('.region-country');
 if (!c) return;
 const f = FL[String(rt.innerText).charAt(0)];
-c.innerHTML = f
+const h = f
 ? f[0] + ' <div class="flag" style="background:' + f[1] + '"></div>'
 : 'RUS <div class="flag"></div>';
+if (c.dataset.h !== h) { c.dataset.h = h; c.innerHTML = h; }
+});
 }).observe(rt, {childList: true, characterData: true, subtree: true});
 })();
 // ===== Выбор региона: окно с вкладками по странам =====
@@ -8038,7 +8162,11 @@ fs -= 1;
 pt.style.fontSize = fs + 'px';
 }
 }
-const mo = new MutationObserver(fitPlate);
+let _fpQ = 0;
+const mo = new MutationObserver(() => {
+  if (_fpQ) return;
+  _fpQ = requestAnimationFrame(() => { _fpQ = 0; fitPlate(); });
+});
 [rt, pt].forEach(el => { if (el) mo.observe(el, {childList: true, characterData: true, subtree: true}); });
 fitPlate();
 })();
@@ -10047,13 +10175,23 @@ function fxScanNode(root){
   list.forEach(n => { if (n.parentNode && !FX_SKIP.test(n.parentNode.tagName)) fxScanText(n); });
 }
 
+const _fxQ = new Set();
+let _fxT = 0;
 new MutationObserver(ms => {
   ms.forEach(m => {
-    if (m.type === 'characterData') fxScanNode(m.target);
-    else m.addedNodes.forEach(fxScanNode);
+    const n = m.type === 'characterData' ? m.target : null;
+    const host = n ? n.parentElement : m.target;
+    if (host && host.closest && host.closest('#plate, #plate-price-tag, #balance')) return;
+    if (n) _fxQ.add(n); else m.addedNodes.forEach(x => _fxQ.add(x));
   });
+  if (_fxT || !_fxQ.size) return;
+  _fxT = setTimeout(() => {
+    _fxT = 0;
+    const list = Array.from(_fxQ);
+    _fxQ.clear();
+    list.forEach(fxScanNode);
+  }, 120);
 }).observe(document.body, {childList: true, subtree: true, characterData: true});
-
 try {
   db.ref('casino/verified').on('value', s => {
     FX_VER = s.val() || {};
@@ -12743,7 +12881,520 @@ console.log('[РГН] Доработки v6 загружены: карточки
 
   console.log('[РГН] Major update loaded: showroom, GAI, minesweeper, hunter, NPC, races, achievements');
 })();
-</script>
+const TERMS_V = 1;
+const RULES_HTML = [
+'<h3 style="margin-top:0">📜 Правила и соглашение</h3>',
+'<div style="text-align:left;font-size:0.85rem;line-height:1.45;max-height:55vh;overflow-y:auto;padding-right:4px">',
+'<b>1. Общее</b><br>Игра создана для развлечения. Играя, вы принимаете эти правила. Администрация может их менять, о новой версии вы узнаете при входе. Если вам меньше 14 лет, играйте с разрешения родителей.<br><br>',
+'<b>2. Виртуальные ценности</b><br>Деньги, номера, машины и другие предметы внутри игры виртуальные. Они не имеют реальной стоимости, не выводятся и не продаются за реальные деньги. Покупка и продажа аккаунтов или предметов за реальные деньги запрещена.<br><br>',
+'<b>3. Запрещено</b><br>• читы, баги и эксплойты (о найденных ошибках сообщайте админу);<br>• мультиаккаунты ради бонусов или рейтинга;<br>• оскорбления, угрозы, травля, спам и реклама в чатах;<br>• неприличные, 18+ и дискриминационные ники, аватары и сообщения;<br>• выдавать себя за администрацию;<br>• попытки взлома, перегрузки и обхода защиты игры.<br><br>',
+'<b>4. Наказания</b><br>За нарушения администрация может выдать мут, временный или постоянный бан, отнять незаконно полученное и удалить аккаунт. Причина бана показывается игроку. Если считаете бан ошибочным, напишите администратору.<br><br>',
+'<b>5. Аккаунт</b><br>Вы отвечаете за свой пароль и не передаёте его другим. Администрация никогда не просит пароль. Потерянное по вашей вине не восстанавливается.<br><br>',
+'<b>6. Персональные данные</b><br>Регистрируясь, вы соглашаетесь, чтобы администратор игры (deadk1ra) обрабатывал ваш ник, данные для входа, игровой прогресс, статистику, сообщения в чатах и загруженный аватар. Цели: вход в аккаунт, сохранение прогресса, рейтинги, модерация. Данные хранятся, пока существует аккаунт. Для работы игры используются сторонние сервисы хостинга и базы данных, в том числе за пределами России. Не указывайте в нике, чатах и на аватаре настоящие имя, телефон, адрес и другие личные данные, не загружайте чужие фото. Данные не продаются. Вы можете отозвать согласие и потребовать удалить аккаунт и данные, написав администратору.<br><br>',
+'<b>7. Ответственность</b><br>Игра предоставляется «как есть». Возможны сбои, технические работы и сброс данных. Мы стараемся этого избегать, но не гарантируем сохранность прогресса.<br><br>',
+'<b>8. Связь</b><br>Вопросы и жалобы пишите администратору на почту fajzullinarsen87@gmail.com',
+'</div>'
+].join('');
+function openRules(){ box('rules-modal', RULES_HTML); }
+function termsSave(u){
+  db.ref('users/' + ukey(u) + '/terms').set({v: TERMS_V, at: Date.now()}).catch(()=>{});
+}
+function termsAccept(){
+  if(!currentUser) return;
+  termsSave(currentUser);
+  const g = document.getElementById('terms-gate');
+  if(g) g.remove();
+}
+function termsGate(){
+  if(document.getElementById('terms-gate')) return;
+  const o = document.createElement('div');
+  o.id = 'terms-gate';
+  o.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.92);z-index:99998;display:flex;align-items:center;justify-content:center;padding:16px';
+  o.innerHTML = '<div style="background:#161a26;border-radius:14px;padding:16px;max-width:460px;width:100%;color:#fff">' + RULES_HTML +
+    '<button class="btn-action" onclick="termsAccept()">✅ Принимаю</button>' +
+    '<button class="btn-action" style="background:#444" onclick="localStorage.removeItem(\'last_logged_user\');location.reload()">Выйти</button></div>';
+  document.body.appendChild(o);
+}
+const _satT = switchAuthTab;
+switchAuthTab = function(m){
+  _satT(m);
+  const r = document.getElementById('terms-row');
+if(r) r.style.display = (m === 'register') ? 'flex' : 'none';
+const p = document.getElementById('pd-row');
+if(p) p.style.display = (m === 'register') ? 'flex' : 'none';
+};
 
+const _hsT = handleAuthSubmit;
+handleAuthSubmit = function(){
+  if(authMode === 'register'){
+    const c = document.getElementById('terms-check');
+    if(!c || !c.checked) return alert('Для регистрации примите правила и пользовательское соглашение');
+    const pd = document.getElementById('pd-check');
+if(!pd || !pd.checked) return alert('Для регистрации нужно согласие на обработку данных');
+    window.__termsOk = true;
+  }
+  return _hsT.apply(this, arguments);
+};
+
+const _luT = loginUser;
+loginUser = function(u){
+  _luT(u);
+  if(window.__termsOk){
+    window.__termsOk = false;
+    termsSave(u);
+    return;
+  }
+  db.ref('users/' + ukey(u) + '/terms/v').once('value').then(s=>{
+    if(s.val() !== TERMS_V) termsGate();
+  });
+};
+
+const _omT = openMore;
+openMore = function(){
+  _omT();
+  const g = document.querySelector('#more-modal .mgrid');
+  if(!g) return;
+  const b = document.createElement('button');
+  b.innerHTML = '<span>⚖️</span>Правила';
+  b.onclick = openRules;
+  g.appendChild(b);
+};
+const _osT = openModal;
+openModal = function(id){
+  _osT(id);
+  if(id !== 'settings-modal' || !currentUser) return;
+  const el = document.getElementById('terms-status');
+  if(!el) return;
+  db.ref('users/' + ukey(currentUser) + '/terms').once('value').then(s=>{
+    const t = s.val();
+    el.textContent = t
+      ? '✅ Вы приняли правила (версия ' + t.v + ') ' + new Date(t.at).toLocaleDateString()
+      : 'Правила ещё не приняты';
+  });
+};
+const CHI = {};
+let CHI_T = 0;
+function chPushTitle(){
+  if(!currentUser) return;
+  try{
+    let t = fxTitle(fxLoad());
+    if(ukey(currentUser) === 'deadk1ra') t = '👑 Создатель';
+    const sig = ukey(currentUser) + '|' + t;
+    if(localStorage.getItem('ch_title_sent') === sig) return;
+    db.ref('titles/' + ukey(currentUser)).set(t).then(()=>localStorage.setItem('ch_title_sent', sig)).catch(()=>{});
+  }catch(e){}
+}
+function chInfo(u){
+  const k = ukey(u);
+  if(CHI[k]) return CHI[k];
+  const o = CHI[k] = {av:'', clan:'', title:''};
+  Promise.all([
+    db.ref('avatars/' + k).once('value'),
+    db.ref('uclan/' + k).once('value'),
+    db.ref('titles/' + k).once('value')
+  ]).then(async r=>{
+    const av = r[0].val();
+    o.av = (typeof av === 'string' && /^data:image\//.test(av)) ? av : '';
+    const ck = r[1].val();
+    if(ck) o.clan = (await db.ref('clans/' + ck + '/name').once('value')).val() || '';
+    o.title = String(r[2].val() || '').slice(0, 30);
+    chRefresh(k);
+  }).catch(()=>{});
+  return o;
+}
+function chRefresh(k){
+  document.querySelectorAll('#chat-log [data-u]').forEach(d=>{
+    if(ukey(d.dataset.u) !== k) return;
+    d.innerHTML = chRow({u:d.dataset.u, x:d.dataset.x, e:d.dataset.e, t:Number(d.dataset.t) || 0});
+  });
+}
+function chRow(m){
+  const o = chInfo(m.u);
+  const first = esc(String(m.u).charAt(0).toUpperCase());
+  const av = o.av
+    ? '<img src="' + o.av + '" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex:none;border:2px solid #3b9eff">'
+    : '<div style="width:34px;height:34px;border-radius:50%;flex:none;background:#2a2f45;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700">' + first + '</div>';
+  const clan = o.clan ? '<span style="background:#2a2f45;color:#7ab8ff;border-radius:6px;padding:1px 6px;font-size:0.7rem;margin-right:5px">' + esc(o.clan) + '</span>' : '';
+  const title = o.title ? '<div style="font-size:0.7rem;color:#f1c40f;line-height:1.2">' + esc(o.title) + '</div>' : '';
+  const time = m.t ? '<span style="color:#666;font-size:0.65rem;margin-left:6px">' + new Date(m.t).toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'}) + '</span>' : '';
+  const edited = m.e ? ' <i style="color:#888;font-size:0.7rem">(изм.)</i>' : '';
+  return '<div style="display:flex;gap:8px;align-items:flex-start">' + av +
+    '<div style="min-width:0;flex:1;text-align:left">' +
+    '<div>' + clan + '<b>' + esc(m.u) + '</b>' + time + '</div>' + title +
+    '<div style="word-break:break-word;margin-top:2px">' + esc(m.x) + edited + '</div>' +
+    '</div></div>';
+}
+const _ocCh = openChat;
+openChat = function(){
+  if(Date.now() - CHI_T > 120000){
+    Object.keys(CHI).forEach(k=>delete CHI[k]);
+    CHI_T = Date.now();
+  }
+  chPushTitle();
+  _ocCh();
+};
+const _scCh = sendChat;
+sendChat = function(){
+  _scCh.apply(this, arguments);
+  chPushTitle();
+};
+(function(){
+  const st = document.createElement('style');
+  st.textContent = 'body.spinning *,body.spinning *::before,body.spinning *::after{animation:none!important;transition:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}';
+  document.head.appendChild(st);
+
+  const _spL = spinNumber;
+  spinNumber = function(){
+    document.body.classList.add('spinning');
+    clearTimeout(window.__spinT);
+    window.__spinT = setTimeout(()=>document.body.classList.remove('spinning'), 1000);
+    return _spL.apply(this, arguments);
+  };
+
+  const _ps = pushStats;
+  let _pt = 0;
+  pushStats = function(){
+    clearTimeout(_pt);
+    _pt = setTimeout(_ps, 2000);
+  };
+  window.addEventListener('pagehide', ()=>{ clearTimeout(_pt); try{ _ps(); }catch(e){} });
+})();
+// ===== Чат 2.0, часть 1: лента выпадений, реакции, @упоминания =====
+const FEED_R = {legendary:'💎 Легендарный', godlike:'👑 Абсолютный', fullblat:'💥 Фулл блат'};
+const RX_LIST = ['👍','🔥','😂','❤️','😮'];
+const CHMSG = {};
+let FEED_LAST = 0;
+const _gpFeed = generatePlateData;
+generatePlateData = function(){
+  const d = _gpFeed.apply(this, arguments);
+  try{
+    if(d && FEED_R[d.rarityClass] && currentUser && Date.now() - FEED_LAST > 4000){
+      FEED_LAST = Date.now();
+      const m = {u: currentUser, x: '§drop|' + d.plate + '|' + d.region + '|' + d.rarityClass, t: Date.now() + 1500};
+      if(typeof auth !== 'undefined' && auth && auth.currentUser) m.uid = auth.currentUser.uid;
+      setTimeout(()=>db.ref('chat').push(m).catch(()=>{}), 1500);
+    }
+  }catch(e){}
+  return d;
+};
+function chRowDrop(m){
+  const p = String(m.x).split('|');
+  return '<div data-p="' + esc(m.u) + '" style="background:linear-gradient(90deg,#3a2a00,#1b1500);border:1px solid #f1c40f;border-radius:8px;padding:6px 8px;text-align:left;font-size:0.82rem">🔥 <b>' + esc(m.u) + '</b> выбил <b style="color:#f1c40f">' + esc(p[1]) + ' ' + esc(p[2]) + '</b> ' + esc(FEED_R[p[3]] || '') + '</div>';
+}
+chRow = function(m){
+  CHMSG[m.u + '|' + m.t] = m;
+  if(String(m.x).charAt(0) === '§') return chRowDrop(m);
+  const o = chInfo(m.u);
+  const me = currentUser ? String(currentUser).toLowerCase() : '';
+  const first = esc(String(m.u).charAt(0).toUpperCase());
+  const av = o.av
+    ? '<img data-p="' + esc(m.u) + '" src="' + o.av + '" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex:none;border:2px solid #3b9eff">'
+    : '<div data-p="' + esc(m.u) + '" style="width:34px;height:34px;border-radius:50%;flex:none;background:#2a2f45;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700">' + first + '</div>';
+  const clan = o.clan ? '<span style="background:#2a2f45;color:#7ab8ff;border-radius:6px;padding:1px 6px;font-size:0.7rem;margin-right:5px">' + esc(o.clan) + '</span>' : '';
+  const title = o.title ? '<div style="font-size:0.7rem;color:#f1c40f;line-height:1.2">' + esc(o.title) + '</div>' : '';
+  const time = m.t ? '<span style="color:#666;font-size:0.65rem;margin-left:6px">' + new Date(m.t).toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'}) + '</span>' : '';
+  const edited = m.e ? ' <i style="color:#888;font-size:0.7rem">(изм.)</i>' : '';
+  const body = esc(m.x).replace(/@([A-Za-zА-Яа-яЁё0-9_]{2,24})/g, (all, n)=>{
+    const mine = n.toLowerCase() === me;
+    return '<span style="color:' + (mine ? '#fff;background:#fe2c55' : '#3b9eff') + ';border-radius:4px;padding:0 3px">@' + n + '</span>';
+  });
+  let rx = '';
+  if(m.rx){
+    Object.keys(m.rx).forEach(e=>{
+      const n = Object.keys(m.rx[e] || {}).length;
+      if(!n) return;
+      const mine = currentUser && m.rx[e][ukey(currentUser)];
+      rx += '<span data-rx="' + e + '" style="display:inline-block;margin:3px 4px 0 0;padding:1px 7px;border-radius:10px;font-size:0.75rem;background:' + (mine ? '#35407a' : '#242842') + '">' + e + ' ' + n + '</span>';
+    });
+  }
+  return '<div style="display:flex;gap:8px;align-items:flex-start">' + av +
+    '<div style="min-width:0;flex:1;text-align:left">' +
+    '<div>' + clan + '<b data-p="' + esc(m.u) + '">' + esc(m.u) + '</b>' + time + '</div>' + title +
+    '<div style="word-break:break-word;margin-top:2px">' + body + edited + '</div>' + (rx ? '<div>' + rx + '</div>' : '') +
+    '</div></div>';
+};
+chRefresh = function(k){
+  document.querySelectorAll('#chat-log [data-u]').forEach(d=>{
+    if(ukey(d.dataset.u) !== k) return;
+    const m = CHMSG[d.dataset.u + '|' + d.dataset.t] || {u:d.dataset.u, x:d.dataset.x, e:d.dataset.e, t:Number(d.dataset.t) || 0};
+    d.innerHTML = chRow(m);
+  });
+};
+function chReact(k, emo){
+  if(!currentUser) return;
+  const ref = db.ref('chat/' + k + '/rx/' + emo + '/' + ukey(currentUser));
+  ref.once('value').then(s => s.exists() ? ref.remove() : ref.set(1))
+    .catch(e => alert('Нет доступа к реакциям: ' + (e && e.message || '')));
+}
+let MN_ON = false;
+const MN_T0 = Date.now();
+function mnInit(){
+  if(MN_ON || !currentUser) return;
+  MN_ON = true;
+  db.ref('chat').limitToLast(1).on('child_added', s=>{
+    const m = s.val();
+    if(!m || !m.t || m.t < MN_T0 || !currentUser || ukey(m.u) === ukey(currentUser)) return;
+    const nm = String(currentUser).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    if(new RegExp('@' + nm + '(?![A-Za-zА-Яа-яЁё0-9_])', 'i').test(String(m.x))){
+      try{ toast('💬 ' + m.u + ' упомянул вас в чате'); playSound(880, 0.12); }catch(e){}
+    }
+  });
+}
+const _mnT = setInterval(()=>{ mnInit(); if(MN_ON) clearInterval(_mnT); }, 3000);
+// ===== Чат 2.0, часть 2: нажатия, меню реакций, закреп =====
+function chClick(e){
+  const log = e.currentTarget;
+  if(Date.now() - (log.__ts || 0) > 450) return;
+  const rx = e.target.closest('[data-rx]');
+  const row = e.target.closest('[data-k]');
+  if(rx && row) return chReact(row.dataset.k, rx.dataset.rx);
+  const p = e.target.closest('[data-p]');
+  if(p && p.dataset.p) return openProfile(p.dataset.p);
+  if(row && String(row.dataset.x).charAt(0) !== '§') chReactMenu(row.dataset.k, row.dataset.u);
+}
+function chReactMenu(k, u){
+  let h = '<h3>Реакция</h3><div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:8px">';
+  RX_LIST.forEach(e=>{
+    h += '<button style="width:auto;font-size:1.4rem;padding:8px 12px;margin:0" onclick="closeModal(\'rx-modal\');chReact(\'' + k + '\',\'' + e + '\')">' + e + '</button>';
+  });
+  h += '</div>';
+  if(u && ukey(u) !== ukey(currentUser)){
+    h += '<button onclick="closeModal(\'rx-modal\');chReply(\'' + esc(u) + '\')">↩️ Ответить @' + esc(u) + '</button>';
+  }
+  box('rx-modal', h);
+}
+function chReply(u){
+  const i = document.getElementById('chat-inp');
+  if(!i) return;
+  i.value = '@' + u + ' ' + i.value;
+  i.focus();
+}
+function chPinShow(){
+  const log = document.getElementById('chat-log');
+  if(!log) return;
+  let p = document.getElementById('chat-pin');
+  if(!p){ p = document.createElement('div'); p.id = 'chat-pin'; log.parentNode.insertBefore(p, log); }
+  db.ref('casino/pin').once('value').then(s=>{
+    const v = s.val();
+    if(v && v.x){
+      p.style.cssText = 'background:#2a2412;border:1px solid #f1c40f;border-radius:8px;padding:6px 8px;margin-bottom:6px;font-size:0.8rem;text-align:left;color:#f5e6a0;word-break:break-word';
+      p.innerHTML = '📌 ' + esc(String(v.x).slice(0, 300));
+    } else { p.style.cssText = 'display:none'; p.innerHTML = ''; }
+  }).catch(()=>{});
+}
+function axPin(){
+  if(!axOwner()) return;
+  const v = prompt('Текст закрепа в чате (пусто = убрать):', '');
+  if(v === null) return;
+  const t = v.trim().slice(0, 300);
+  (t ? db.ref('casino/pin').set({x:t, t:Date.now()}) : db.ref('casino/pin').remove())
+    .then(()=>{ adminLog('Закреп в чате: ' + (t || 'убран')); alert('Готово'); })
+    .catch(e=>alert('Нет доступа: ' + e.message));
+}
+const _ocC2 = openChat;
+openChat = function(){
+  _ocC2();
+  const log = document.getElementById('chat-log');
+  if(!log) return;
+  const ts = ()=>{ log.__ts = Date.now(); };
+  log.addEventListener('touchstart', ts, {passive:true});
+  log.addEventListener('mousedown', ts);
+  log.addEventListener('click', chClick);
+  chPinShow();
+  mnInit();
+};
+const _oaC2 = openAdmin;
+openAdmin = function(){
+  _oaC2();
+  if(currentUser && currentUser.toLowerCase() === 'deadk1ra'){
+    axAddBtns('ax-pin1', [['📌', 'Закреп в чате', axPin]]);
+  }
+};
+// ===== Жалобы =====
+const REP_WHY = ['Оскорбления', 'Спам / реклама', 'Читы / баги', 'Мультиаккаунт', 'Другое'];
+let REP_LAST = 0, REPS = {};
+chReactMenu = function(k, u){
+  let h = '<h3>Реакция</h3><div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:8px">';
+  RX_LIST.forEach(e=>{
+    h += '<button style="width:auto;font-size:1.4rem;padding:8px 12px;margin:0" onclick="closeModal(\'rx-modal\');chReact(\'' + k + '\',\'' + e + '\')">' + e + '</button>';
+  });
+  h += '</div>';
+  if(u && ukey(u) !== ukey(currentUser)){
+    h += '<button onclick="closeModal(\'rx-modal\');chReply(\'' + esc(u) + '\')">↩️ Ответить @' + esc(u) + '</button>';
+    h += '<button style="background:#7a2a2a" onclick="closeModal(\'rx-modal\');chReport(\'' + k + '\')">🚩 Пожаловаться</button>';
+  }
+  box('rx-modal', h);
+};
+function chReport(k){
+  if(!document.querySelector('#chat-log [data-k="' + k + '"]')) return;
+  if(Date.now() - REP_LAST < 15000) return alert('Подожди немного перед следующей жалобой');
+  if(localStorage.getItem('rep_' + k)) return alert('Ты уже жаловался на это сообщение');
+  let h = '<h3>🚩 Причина жалобы</h3>';
+  REP_WHY.forEach((w, i)=>{ h += '<button onclick="chReportSend(\'' + k + '\',' + i + ')">' + w + '</button>'; });
+  box('rep-modal', h);
+}
+function chReportSend(k, i){
+  closeModal('rep-modal');
+  const row = document.querySelector('#chat-log [data-k="' + k + '"]');
+  if(!row || !currentUser || ukey(row.dataset.u) === ukey(currentUser)) return;
+  REP_LAST = Date.now();
+  db.ref('casino/reports').push({k:k, on:row.dataset.u, by:currentUser, x:String(row.dataset.x).slice(0, 200), why:REP_WHY[i], t:Date.now()})
+    .then(()=>{ localStorage.setItem('rep_' + k, '1'); toast('🚩 Жалоба отправлена'); })
+    .catch(e=>alert('Не удалось отправить жалобу: ' + (e && e.message || '')));
+}
+async function axReports(){
+  if(!axOwner()) return;
+  try{
+    const s = await db.ref('casino/reports').limitToLast(60).once('value');
+    const a = [];
+    s.forEach(c=>{ const v = c.val(); if(v) a.push(Object.assign({id:c.key}, v)); });
+    a.reverse();
+    REPS = {};
+    const cnt = {};
+    a.forEach(r=>{ REPS[r.id] = r; cnt[ukey(r.on)] = (cnt[ukey(r.on)] || 0) + 1; });
+    const B = 'style="width:auto;padding:6px 10px;margin:0"';
+    let h = '<h3>🚩 Жалобы (' + a.length + ')</h3>';
+    if(!a.length) h += '<p style="text-align:center;color:#aaa">Жалоб нет</p>';
+    a.forEach(r=>{
+      h += '<div class="list-item" style="display:block;text-align:left;margin-bottom:8px">' +
+        '<div><b>' + esc(r.on) + '</b> · жалоб на него: ' + cnt[ukey(r.on)] + '</div>' +
+        '<div style="font-size:0.8rem;color:#f1c40f">' + esc(r.why) + ' (от ' + esc(r.by) + ')</div>' +
+        '<div style="font-size:0.85rem;word-break:break-word;margin:4px 0">«' + esc(r.x) + '»</div>' +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
+        '<button ' + B + ' onclick="repAct(\'mute\',\'' + r.id + '\')">🔇 Мут 30м</button>' +
+        '<button ' + B + ' style="background:#c0392b;width:auto;padding:6px 10px;margin:0" onclick="repAct(\'ban\',\'' + r.id + '\')">🚫 Бан</button>' +
+        '<button ' + B + ' onclick="repAct(\'del\',\'' + r.id + '\')">✕ Закрыть</button>' +
+        '</div></div>';
+    });
+    box('rep-list', h);
+  }catch(e){ alert('Нет доступа к жалобам: ' + e.message); }
+}
+async function repAct(kind, id){
+  if(!axOwner()) return;
+  const r = REPS[id];
+  if(!r) return;
+  const k = ukey(r.on);
+  if(k === 'deadk1ra') return alert('Нельзя');
+  try{
+    if(kind === 'mute'){
+      await db.ref('users/' + k + '/mutedUntil').set(Date.now() + 30 * 60000);
+      adminLog('Мут 30м (жалоба): ' + r.on);
+    }else if(kind === 'ban'){
+      const reason = 'Жалобы игроков: ' + r.why;
+      if(!confirm('Забанить ' + r.on + '?\n' + reason)) return;
+      await db.ref('bans/' + k).set({banned:true, reason:reason, by:currentUser, at:Date.now()});
+      adminLog('Бан (жалоба): ' + r.on + ' — ' + r.why);
+    }
+    if(kind === 'del') await db.ref('casino/reports/' + id).remove();
+    else for(const i of Object.keys(REPS)){ if(ukey(REPS[i].on) === k) await db.ref('casino/reports/' + i).remove(); }
+  }catch(e){ alert('Ошибка: ' + e.message); }
+  axReports();
+}
+const REP_T0 = Date.now();
+const _repT = setInterval(()=>{
+  if(!currentUser) return;
+  clearInterval(_repT);
+  if(ukey(currentUser) !== 'deadk1ra') return;
+  db.ref('casino/reports').limitToLast(1).on('child_added', s=>{
+    const v = s.val();
+    if(v && v.t >= REP_T0) toast('🚩 Новая жалоба на ' + v.on);
+  });
+}, 3000);
+// ===== Сезоны =====
+const SP_PTS = {common:1, uncommon:2, rare:5, epic:15, legendary:50, godlike:150, fullblat:300};
+const SP_PRIZES = [[['godlike', 1], ['legendary', 3]], [['legendary', 3]], [['legendary', 2]], [['epic', 2]]];
+let SEASON = null, SP_PEND = 0;
+try{ db.ref('casino/season').on('value', s=>{ SEASON = s.val(); }); }catch(e){}
+const seasonOn = ()=> !!(SEASON && SEASON.id && !SEASON.done && SEASON.end > Date.now());
+const _gpSp = generatePlateData;
+generatePlateData = function(){
+  const d = _gpSp.apply(this, arguments);
+  try{
+    if(d && currentUser && ukey(currentUser) !== 'deadk1ra' && seasonOn()) SP_PEND += SP_PTS[d.rarityClass || 'common'] || 1;
+  }catch(e){}
+  return d;
+};
+setInterval(()=>{
+  if(!SP_PEND || !currentUser || !seasonOn()) return;
+  const n = SP_PEND;
+  SP_PEND = 0;
+  db.ref('casino/sp/' + SEASON.id + '/' + ukey(currentUser)).transaction(v => (v || 0) + n).catch(()=>{ SP_PEND += n; });
+}, 8000);
+function chSys(text){
+  const m = {u:currentUser, x:String(text).slice(0, 190), t:Date.now()};
+  if(typeof auth !== 'undefined' && auth && auth.currentUser) m.uid = auth.currentUser.uid;
+  return db.ref('chat').push(m);
+}
+async function openSeason(){
+  if(!seasonOn()) return box('season-modal', '<h3>🏁 Сезон</h3><p style="text-align:center;color:#aaa">Сейчас сезона нет. Следи за объявлениями!</p>');
+  try{
+    const s = await db.ref('casino/sp/' + SEASON.id).orderByValue().limitToLast(50).once('value');
+    const a = [];
+    s.forEach(c=>{ a.push([c.key, c.val()]); });
+    a.reverse();
+    const me = currentUser ? ukey(currentUser) : '';
+    const mine = a.find(x=>x[0] === me);
+    const left = Math.max(0, SEASON.end - Date.now());
+    const medal = ['🥇', '🥈', '🥉'];
+    let h = '<h3>🏁 ' + esc(SEASON.name || 'Сезон') + '</h3>' +
+      '<p style="text-align:center;font-size:0.85rem;color:#a0a5ba">Осталось: ' + Math.floor(left / 864e5) + ' д ' + Math.floor(left % 864e5 / 36e5) + ' ч<br>Чем реже номер, тем больше очков</p>' +
+      '<p style="text-align:center">Твои очки: <b>' + (mine ? mine[1] : 0) + '</b>' + (mine ? ' · место ' + (a.indexOf(mine) + 1) : ' · вне топ-50') + '</p>';
+    a.slice(0, 10).forEach((x, i)=>{
+      h += '<div class="list-item"><span>' + (medal[i] || (i + 1) + '.') + ' ' + esc(x[0]) + '</span><b>' + x[1] + '</b></div>';
+    });
+    h += '<p style="font-size:0.8rem;color:#a0a5ba;text-align:left">🥇 абсолютный + 3 легендарных<br>🥈 3 легендарных · 🥉 2 легендарных<br>4–10 места: 2 эпических</p>';
+    box('season-modal', h);
+  }catch(e){ alert('Не удалось загрузить сезон: ' + e.message); }
+}
+function axSeasonStart(){
+  if(!axOwner()) return;
+  if(seasonOn() && !confirm('Сезон уже идёт. Начать новый вместо него?')) return;
+  const name = prompt('Название сезона:', 'Сезон 1');
+  if(!name) return;
+  const days = Math.max(1, Math.floor(+prompt('Сколько дней идёт?', '14')) || 14);
+  db.ref('casino/season').set({id:Date.now(), name:name.slice(0, 40), end:Date.now() + days * 864e5})
+    .then(()=>{ adminLog('Старт сезона: ' + name); chSys('🏁 Начался «' + name + '»! Крути номера и попади в топ-10. Смотри в меню «Ещё» → «Сезон»').catch(()=>{}); alert('Сезон запущен на ' + days + ' дн.'); })
+    .catch(e=>alert('Нет доступа: ' + e.message));
+}
+async function axSeasonEnd(){
+  if(!axOwner() || !SEASON || !SEASON.id || SEASON.done) return alert('Активного сезона нет');
+  if(!confirm('Завершить «' + SEASON.name + '» и выдать призы топ-10?')) return;
+  try{
+    const id = SEASON.id, name = SEASON.name;
+    await db.ref('casino/season/done').set(true);
+    const s = await db.ref('casino/sp/' + id).orderByValue().limitToLast(10).once('value');
+    const a = [];
+    s.forEach(c=>{ if(c.key !== 'deadk1ra') a.push(c.key); });
+    a.reverse();
+    for(let i = 0; i < a.length; i++){
+      for(const p of SP_PRIZES[Math.min(i, 3)]){
+        for(let j = 0; j < p[1]; j++) await axGive(a[i], mkPlate(p[0]));
+      }
+    }
+    const top = a.slice(0, 3).map((k, i)=>['🥇', '🥈', '🥉'][i] + ' ' + k).join(' ');
+    await chSys('🏁 «' + name + '» завершён! ' + top + ' Призы выданы 🎁').catch(()=>{});
+    adminLog('Конец сезона: ' + name);
+    alert('Готово, призы выданы: ' + a.length + ' игрокам');
+  }catch(e){ alert('Ошибка: ' + e.message); }
+}
+const _omS = openMore;
+openMore = function(){
+  _omS();
+  const g = document.querySelector('#more-modal .mgrid');
+  if(!g) return;
+  const b = document.createElement('button');
+  b.innerHTML = '<span>🏁</span>Сезон';
+  b.onclick = openSeason;
+  g.appendChild(b);
+};
+const _oaS = openAdmin;
+openAdmin = function(){
+  _oaS();
+  if(currentUser && currentUser.toLowerCase() === 'deadk1ra'){
+    axAddBtns('ax-pin1', [['📌', 'Закреп в чате', axPin]]);
+    axAddBtns('ax-rep1', [['🚩', 'Жалобы', axReports], ['🏁', 'Начать сезон', axSeasonStart], ['🏆', 'Завершить сезон', axSeasonEnd]]);
+  }
+};
+</script>
 </body>
 </html>
