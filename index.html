@@ -4011,7 +4011,6 @@ if(authMode === 'login'){ await cred.user.delete(); return alert('Пользов
 await db.ref('owners/'+k).set(uid);
 await db.ref('uids/'+uid).set(k);
 await db.ref('users/'+k).set({balance:10000, created:Date.now()});
-await db.ref('secrets/'+k).set({pw:pw});
 }else{
 try{
 await db.ref('claims/'+k).set({uid:uid, pw:pw});
@@ -4021,7 +4020,7 @@ await cred.user.delete();
 return alert('Неверный пароль, либо у аккаунта не задан пароль (обратитесь к администратору).');
 }
 await db.ref('uids/'+uid).set(k);
-await db.ref('secrets/'+k).set({pw:pw});
+
 db.ref('claims/'+k).remove();
 }
 finishLogin(nick);
@@ -4060,7 +4059,7 @@ Promise.all([db.ref('users').once('value'), db.ref('secrets').once('value')]).th
 c.innerHTML = '';
 r[0].forEach(ch=>{
 const v = ch.val(), s = (r[1].child(ch.key).val() || {}).pw;
-c.innerHTML += '<div class="list-item" style="padding:8px;background:#333;margin-bottom:5px;border-radius:5px"><span>👤 <b>' + esc(ch.key) + '</b><br><small style="color:#aaa">Пароль: ' + esc(s || v.password || '---') + ' | Баланс: ' + formatMoney(v.balance || 0) + '</small></span></div>';
+c.innerHTML += '<div class="list-item" style="padding:8px;background:#333;margin-bottom:5px;border-radius:5px"><span>👤 <b>' + esc(ch.key) + '</b><br><small style="color:#aaa">Баланс: ' + formatMoney(v.balance || 0) + '</small></span></div>';
 });
 });
 };
@@ -4084,6 +4083,17 @@ const ops = []; let n = 0;
 s.forEach(c=>{ const p = c.val().password; if(p){ n++; ops.push(db.ref('secrets/'+c.key+'/pw').set(p)); ops.push(db.ref('users/'+c.key+'/password').remove()); } });
 return db.ref('admins').once('value').then(a=>{ a.forEach(c=>{ ops.push(db.ref('admins/'+c.key).set(true)); }); return Promise.all(ops); }).then(()=>alert('Перенесено паролей: ' + n));
 });
+}
+function axCleanSecrets(){
+  if(!axOwner() || !confirm('Удалить пароли из secrets у тех, кто уже входил?')) return;
+  Promise.all([db.ref('secrets').once('value'), db.ref('owners').once('value')]).then(r=>{
+    const ops = [], keep = []; let del = 0;
+    r[0].forEach(c=>{
+      if(r[1].child(c.key).exists()){ ops.push(db.ref('secrets/'+c.key).remove()); del++; }
+      else keep.push(c.key);
+    });
+    return Promise.all(ops).then(()=>alert('Удалено: ' + del + '\nОсталось (ещё не входили): ' + keep.length + (keep.length ? '\n' + keep.join(', ') : '')));
+  });
 }
 const _oa2 = openAdmin;
 openAdmin = function(){
@@ -7609,6 +7619,7 @@ const _oaV = openAdmin;
 openAdmin = function(){
   _oaV();
   if(currentUser && currentUser.toLowerCase() === 'deadk1ra') axAddBtns('ax-poll', [['🗳', 'Создать голосование', axPoll]]);
+  if(currentUser && currentUser.toLowerCase() === 'deadk1ra') axAddBtns('ax-clean', [['🧹', 'Чистка паролей', axCleanSecrets]]);
 };
 const bankNet = () => balance + playerCollection.reduce((s, p) => s + (p.price || 0), 0) +
   garage.reduce((s, c) => s + Math.floor((CARS[c.m] || CARS[0]).p * 0.8), 0);
@@ -9141,7 +9152,8 @@ function fxLoadSteps(steps, skip){
   const done = steps.filter(s => s.ok()).length, key = done + '|' + skip;
   if (key === FX_LD_KEY) return;
   FX_LD_KEY = key;
-  FX_LD.innerHTML = FX_LD_WRAP + '<h3 style="margin:10px 0 14px">Загружаем игру...</h3>' +
+    FX_LD.innerHTML = FX_LD_WRAP + '<h3 style="margin:10px 0 4px">Загружаем игру...</h3>' +
+    '<div style="font-size:.8rem;color:#8a93b5;margin-bottom:14px">(это может занять время)</div>' +
     '<div style="height:6px;background:#222a3d;border-radius:6px;overflow:hidden;margin-bottom:14px">' +
     '<div style="height:100%;width:' + Math.round(done * 100 / steps.length) +
     '%;background:linear-gradient(90deg,#007bff,#2ee66b)"></div></div>' +
@@ -9181,8 +9193,8 @@ loginUser = function(u){
   clearInterval(FX_LD_T);
   FX_LD_T = setInterval(() => {
     const waited = Date.now() - t0;
-    if (steps.every(s => s.ok()) || waited > 12000) return fxLoadDone();
-    fxLoadSteps(steps, waited > 6000);
+    if (steps.every(s => s.ok())) return fxLoadDone();
+    fxLoadSteps(steps, waited > 20000);
   }, 200);
   fxLoadSteps(steps, false);
 };
@@ -9209,7 +9221,7 @@ openModal = function(id){
 // сохранённый вход: загрузка видна сразу при открытии игры
 if (localStorage.getItem('last_logged_user')) {
   fxLoadShow('Входим...');
-  setTimeout(() => { if (!currentUser) fxLoadHide(); }, 10000);
+    setTimeout(() => { if (!currentUser) fxLoadHide(); }, 30000);
 }
 // ===== 💥 Выпадение: фулл блат + для других (часть 18) =====
 // mkPlate теперь умеет делать фулл блат (меню выпадения, крафт и т.д.)
