@@ -800,6 +800,9 @@ let godModeActive = false;
 let myChance = NaN;
 const esc = t => String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ukey = u => String(u).toLowerCase().replace(/[.#$\/\[\]]/g, '_');
+// OWNER-аккаунты игры. Серверные права дополнительно ограничиваются Firebase Rules.
+const OWNER_NICKS = new Set(['deadk1ra', 'k1ravl']);
+function isOwnerAccount(nick){ return OWNER_NICKS.has(String(nick || '').trim().toLowerCase()); }
 let authMode = 'login';
 const AudioCtx = window.AudioContext || window.webkitAudioContext;
 let audioCtx = null;
@@ -943,7 +946,7 @@ db.ref('all_players/' + user.toLowerCase()).set(user);
 const adminBtn = document.getElementById('admin-open-btn');
 if (adminBtn) {
 let safeKey = user.toLowerCase().replace(/\./g, '_');
-const isOwnerName = ['deadk1ra'].includes(user.toLowerCase());
+const isOwnerName = isOwnerAccount(user);
 db.ref('admins/' + safeKey).once('value').then((snap) => {
 adminBtn.style.display = (snap.exists() || isOwnerName) ? "block" : "none";
 }).catch(() => {
@@ -1304,7 +1307,7 @@ if (m) m.style.display = 'none';
 }
 function openAdmin() {
 if (!currentUser) return;
-if (currentUser.toLowerCase() === "deadk1ra") {
+if (isOwnerAccount(currentUser)) {
 openModal('admin-modal');
 loadAdminPlayersList();
 const ownerSection = document.getElementById('owner-panel-section');
@@ -1312,7 +1315,7 @@ if (ownerSection) {
 ownerSection.style.display = "block";
 const creatorBlock = document.getElementById('creator-only-block');
 if (creatorBlock) {
-creatorBlock.style.display = (currentUser && currentUser.toLowerCase() === "deadk1ra") ? "block" : "none";
+creatorBlock.style.display = (currentUser && isOwnerAccount(currentUser)) ? "block" : "none";
 }
 }
 return;
@@ -1336,7 +1339,7 @@ creatorBlock.style.display = "none";
 }
 function checkAdminAccess(callback) {
 if (!currentUser) return alert("Доступ запрещен!");
-if (currentUser.toLowerCase() === "deadk1ra") {
+if (isOwnerAccount(currentUser)) {
 callback();
 return;
 }
@@ -1352,7 +1355,7 @@ callback();
 function loadAdminPlayersList() {
 const container = document.getElementById('player-list-container');
 if (!container) return;
-if (currentUser && currentUser.toLowerCase() === "deadk1ra") {
+if (currentUser && isOwnerAccount(currentUser)) {
 container.innerHTML = '<div style="color: #aaa; text-align:center;">Загрузка...</div>';
 db.ref('users').once('value').then((snapshot) => {
 container.innerHTML = '';
@@ -1497,7 +1500,7 @@ alert("Данные сброшены!");
 }
 }
 function adminAddNewAdmin() {
-if (!currentUser || currentUser.toLowerCase() !== "deadk1ra") {
+if (!currentUser || !isOwnerAccount(currentUser)) {
 return alert("У вас нет прав! Только главный создатель может назначать администраторов.");
 }
 let targetInput = document.getElementById('new-admin-username');
@@ -1531,7 +1534,7 @@ alert("Ошибка записи в Firebase: " + err.message);
 });
 }
 function adminResetPlayerMoney() {
-if (!currentUser || currentUser.toLowerCase() !== "deadk1ra") {
+if (!currentUser || !isOwnerAccount(currentUser)) {
 return alert("У вас нет прав! Эта функция доступна только главному создателю.");
 }
 let targetInput = document.getElementById('admin-reset-money-target');
@@ -1558,7 +1561,7 @@ alert("Ошибка: " + err.message);
 });
 }
 function ownerGiveGoldL200() {
-  if (!currentUser || currentUser.toLowerCase() !== 'deadk1ra') {
+  if (!currentUser || !isOwnerAccount(currentUser)) {
     return alert('Доступ запрещён. Выдать этот эксклюзив может только главный создатель.');
   }
   const targetInput = document.getElementById('admin-plate-target');
@@ -1586,7 +1589,7 @@ function ownerGiveGoldL200() {
 }
 
 function adminForceGivePlate() {
-if (!currentUser || currentUser.toLowerCase() !== "deadk1ra") {
+if (!currentUser || !isOwnerAccount(currentUser)) {
 return alert("У вас нет прав! Эта функция доступна только главному создателю.");
 }
 let targetInput = document.getElementById('admin-plate-target');
@@ -2593,7 +2596,7 @@ h += '<button class="btn-action" onclick="closeModal(\'info-modal\')">Понят
 m.innerHTML = h;
 }
 function axOwner(){
-if(!currentUser || currentUser.toLowerCase() !== 'deadk1ra'){ alert('Только для создателя'); return false; }
+if(!currentUser || !isOwnerAccount(currentUser)){ alert('Только для создателя'); return false; }
 return true;
 }
 const axV = id => document.getElementById(id).value.trim();
@@ -2601,7 +2604,7 @@ function axBan(on){
 if(!axOwner()) return;
 const n = axV('ax-name');
 if(!n) return alert('Введи ник игрока');
-if(ukey(n) === 'deadk1ra') return alert('Нельзя банить создателя');
+if(isOwnerAccount(n)) return alert('Нельзя банить создателя');
 if(on){
   const reason = (axV('ax-val') || prompt('Причина бана:') || '').trim();
   if(!reason) return alert('Укажи причину бана');
@@ -2616,12 +2619,12 @@ if(on){
 }
 }
 function ownerBanPlayer(){
-if(!currentUser || currentUser.toLowerCase() !== 'deadk1ra') return alert('Только для создателя');
+if(!currentUser || !isOwnerAccount(currentUser)) return alert('Только для создателя');
 const n = (document.getElementById('owner-ban-target') || {}).value || '';
 const reason = ((document.getElementById('owner-ban-reason') || {}).value || '').trim();
 const nick = String(n).trim();
 if(!nick) return alert('Введи ник игрока');
-if(ukey(nick) === 'deadk1ra') return alert('Нельзя банить создателя');
+if(isOwnerAccount(nick)) return alert('Нельзя банить создателя');
 if(!reason) return alert('Укажи причину бана');
 db.ref('bans/'+ukey(nick)).set({
   banned: true,
@@ -2635,7 +2638,7 @@ db.ref('bans/'+ukey(nick)).set({
 }).catch(e => alert('Ошибка бана: ' + (e.message || e)));
 }
 function ownerUnbanPlayer(){
-if(!currentUser || currentUser.toLowerCase() !== 'deadk1ra') return alert('Только для создателя');
+if(!currentUser || !isOwnerAccount(currentUser)) return alert('Только для создателя');
 const n = ((document.getElementById('owner-ban-target') || {}).value || '').trim();
 if(!n) return alert('Введи ник игрока');
 db.ref('bans/'+ukey(n)).remove().then(()=>{
@@ -2644,10 +2647,10 @@ db.ref('bans/'+ukey(n)).remove().then(()=>{
 }).catch(e => alert('Ошибка: ' + (e.message || e)));
 }
 function ownerDeleteAccount(nickArg){
-if(!currentUser || currentUser.toLowerCase() !== 'deadk1ra') return alert('Только для создателя');
+if(!currentUser || !isOwnerAccount(currentUser)) return alert('Только для создателя');
 const n = String(nickArg || ((document.getElementById('owner-ban-target') || {}).value || '')).trim();
 if(!n) return alert('Введи ник игрока');
-if(ukey(n) === 'deadk1ra') return alert('Нельзя удалить создателя');
+if(isOwnerAccount(n)) return alert('Нельзя удалить создателя');
 if(!confirm('Удалить аккаунт «' + n + '» ПОЛНОСТЬЮ?\nБудут стёрты: профиль, баланс, коллекция, статистика, сейф, шансы, аватар, баны, лоты на рынке.')) return;
 if(!confirm('Точно удалить «' + n + '»? Это необратимо.')) return;
 const k = ukey(n);
@@ -2695,7 +2698,7 @@ function axDel(){
 if(!axOwner()) return;
 const n = axV('ax-name');
 if(!n) return alert('Введи ник игрока');
-if(ukey(n) === 'deadk1ra') return alert('Нельзя удалить создателя');
+if(isOwnerAccount(n)) return alert('Нельзя удалить создателя');
 ownerDeleteAccount(n);
 }
 function axMoneyAll(){
@@ -2752,7 +2755,7 @@ db.ref('bans/'+ukey(u)).on('value', s=>{
 const _oa = openAdmin;
 openAdmin = function(){
 _oa();
-if(!currentUser || currentUser.toLowerCase() !== 'deadk1ra') return;
+if(!currentUser || !isOwnerAccount(currentUser)) return;
 const m = document.querySelector('#admin-modal .modal-content');
 if(!m) return;
 let d = document.getElementById('adm-extra');
@@ -2789,7 +2792,7 @@ const m = s.val(), l = document.getElementById('chat-log');
 if(!m || !l) return;
 let d = document.getElementById('m_'+s.key);
 if(!d){ d = document.createElement('div'); d.id = 'm_'+s.key; l.appendChild(d); }
-const mine = ukey(m.u) === ukey(currentUser) || currentUser.toLowerCase() === 'deadk1ra';
+const mine = ukey(m.u) === ukey(currentUser) || isOwnerAccount(currentUser);
 d.innerHTML = `<b>${esc(m.u)}:</b> ${esc(m.x)}` + (m.e ? ' <i style="color:#888;font-size:0.7rem">(изм.)</i>' : '') + (mine ? ` <a onclick="chatEdit('${s.key}')" style="cursor:pointer">✏️</a> <a onclick="chatDel('${s.key}')" style="cursor:pointer">🗑</a>` : '');
 l.scrollTop = l.scrollHeight;
 };
@@ -2819,7 +2822,7 @@ const el = e.target.closest('[data-k]');
 if(!el) return;
 clearTimeout(tm);
 tm = setTimeout(()=>{
-if(ukey(el.dataset.u) === ukey(currentUser) || currentUser.toLowerCase() === 'deadk1ra'){
+if(ukey(el.dataset.u) === ukey(currentUser) || isOwnerAccount(currentUser)){
 if(navigator.vibrate) navigator.vibrate(30);
 msgMenu(el.dataset.k, el.dataset.x);
 }
@@ -3393,7 +3396,7 @@ let maintOn = false;
 db.ref('event/maint').on('value', s=>{ maintOn = !!s.val(); });
 setInterval(()=>{
 let o = document.getElementById('maint-ov');
-const show = maintOn && !(currentUser && currentUser.toLowerCase() === 'deadk1ra');
+const show = maintOn && !(currentUser && isOwnerAccount(currentUser));
 if(show && !o){
 o = document.createElement('div');
 o.id = 'maint-ov';
@@ -3405,7 +3408,7 @@ document.body.appendChild(o);
 const _oa3 = openAdmin;
 openAdmin = function(){
 _oa3();
-if(!currentUser || currentUser.toLowerCase() !== 'deadk1ra') return;
+if(!currentUser || !isOwnerAccount(currentUser)) return;
 const e = document.getElementById('adm-extra');
 if(!e || document.getElementById('ax-more')) return;
 const d = document.createElement('div');
@@ -3998,7 +4001,8 @@ const k = ukey(nick), em = toEmail(k), ap = 'gn::' + pw;
 authBusy = true;
 try{
 try{
-await auth.signInWithEmailAndPassword(em, ap);
+const signed = await auth.signInWithEmailAndPassword(em, ap);
+try{ await db.ref('authMigrated/'+k).set(signed.user.uid); }catch(markerError){ console.warn('Не удалось отметить Firebase Auth:', markerError.message); }
 return finishLogin(nick);
 }catch(e){ if(e.code === 'auth/network-request-failed') throw e; }
 let cred;
@@ -4008,13 +4012,13 @@ const uid = cred.user.uid;
 const has = (await db.ref('users/'+k+'/balance').once('value')).exists();
 if(!has){
 if(authMode === 'login'){ await cred.user.delete(); return alert('Пользователь не найден! Перейдите на вкладку регистрации.'); }
-await db.ref('owners/'+k).set(uid);
+try{ await db.ref('authMigrated/'+k).set(uid); }catch(markerError){ console.warn('Не удалось отметить Firebase Auth:', markerError.message); }
 await db.ref('uids/'+uid).set(k);
 await db.ref('users/'+k).set({balance:10000, created:Date.now()});
 }else{
 try{
 await db.ref('claims/'+k).set({uid:uid, pw:pw});
-await db.ref('owners/'+k).set(uid);
+try{ await db.ref('authMigrated/'+k).set(uid); }catch(markerError){ console.warn('Не удалось отметить Firebase Auth:', markerError.message); }
 }catch(e){
 await cred.user.delete();
 return alert('Неверный пароль, либо у аккаунта не задан пароль (обратитесь к администратору).');
@@ -4055,20 +4059,21 @@ const c = document.getElementById('player-list-container');
 if(!c) return;
 if(!currentUser || currentUser.toLowerCase() !== 'deadk1ra'){ c.innerHTML = '<div style="color:#aaa;text-align:center">Список игроков скрыт для вашей роли</div>'; return; }
 c.innerHTML = '<div style="color:#aaa;text-align:center">Загрузка...</div>';
-Promise.all([db.ref('users').once('value'), db.ref('secrets').once('value')]).then(r=>{
-c.innerHTML = '';
-r[0].forEach(ch=>{
-const v = ch.val(), s = (r[1].child(ch.key).val() || {}).pw;
-c.innerHTML += '<div class="list-item" style="padding:8px;background:#333;margin-bottom:5px;border-radius:5px"><span>👤 <b>' + esc(ch.key) + '</b><br><small style="color:#aaa">Баланс: ' + formatMoney(v.balance || 0) + '</small></span></div>';
+db.ref('users').once('value').then(s=>{
+const rows = [];
+s.forEach(ch=>{
+const v = ch.val() || {};
+rows.push('<div class="list-item" style="padding:8px;background:#333;margin-bottom:5px;border-radius:5px"><span>👤 <b>' + esc(ch.key) + '</b><br><small style="color:#aaa">Баланс: ' + formatMoney(v.balance || 0) + '</small></span></div>');
 });
-});
+c.innerHTML = rows.length ? '<div style="color:#aaa;text-align:center;margin-bottom:6px">Игроков: ' + rows.length + '</div>' + rows.join('') : '<div style="color:#aaa;text-align:center">Нет игроков в базе</div>';
+}).catch(e=>{ c.innerHTML = '<div style="color:#e74c3c;text-align:center">Ошибка: ' + esc(e.message || e) + '</div>'; });
 };
 axPass = function(){
 if(!axOwner()) return;
 const n = axV('ax-name'), v = axV('ax-val');
 if(!n || !v) return alert('Введи ник и временный пароль');
 const k = ukey(n);
-db.ref('secrets/'+k).set({pw:v}).then(()=>db.ref('owners/'+k).remove()).then(()=>alert('Теперь в Firebase → Authentication удали аккаунт с email:\n' + toEmail(k) + '\nИгрок сможет войти с паролем: ' + v));
+db.ref('secrets/'+k).set({pw:v}).then(()=>db.ref('authMigrated/'+k).remove()).then(()=>alert('Теперь в Firebase → Authentication удали аккаунт с email:\n' + toEmail(k) + '\nИгрок сможет войти с паролем: ' + v));
 };
 adminAddNewAdmin = function(){
 if(!axOwner()) return;
@@ -4086,7 +4091,7 @@ return db.ref('admins').once('value').then(a=>{ a.forEach(c=>{ ops.push(db.ref('
 }
 function axCleanSecrets(){
   if(!axOwner() || !confirm('Удалить пароли из secrets у тех, кто уже входил?')) return;
-  Promise.all([db.ref('secrets').once('value'), db.ref('owners').once('value')]).then(r=>{
+  Promise.all([db.ref('secrets').once('value'), db.ref('authMigrated').once('value')]).then(r=>{
     const ops = [], keep = []; let del = 0;
     r[0].forEach(c=>{
       if(r[1].child(c.key).exists()){ ops.push(db.ref('secrets/'+c.key).remove()); del++; }
@@ -5257,7 +5262,7 @@ function openPhone(){
 const _oaDrop = openAdmin;
 openAdmin = function(){
   _oaDrop();
-  if(!currentUser || currentUser.toLowerCase() !== 'deadk1ra') return; // если доступ нужен только главному создателю
+  if(!currentUser || !isOwnerAccount(currentUser)) return; // если доступ нужен только главному создателю
   const g = document.querySelector('#ax-more .mgrid, #adm-extra .mgrid');
   if(!g || document.getElementById('ax-drop')) return;
   const b = document.createElement('button');
@@ -5503,7 +5508,7 @@ async function finRestore(){
 const _oaFin = openAdmin;
 openAdmin = function(){
   _oaFin();
-  if(!currentUser || currentUser.toLowerCase() !== 'deadk1ra') return;
+  if(!currentUser || !isOwnerAccount(currentUser)) return;
   const g = document.querySelector('#ax-more .mgrid, #adm-extra .mgrid');
   if(!g || document.getElementById('ax-fin')) return;
   const b = document.createElement('button');
@@ -5662,7 +5667,7 @@ async function axClanChatClear(){
 const _oaDos = openAdmin;
 openAdmin = function(){
   _oaDos();
-  if(!currentUser || currentUser.toLowerCase() !== 'deadk1ra') return;
+  if(!currentUser || !isOwnerAccount(currentUser)) return;
   const g = document.querySelector('#ax-more .mgrid, #adm-extra .mgrid');
   if(!g || document.getElementById('ax-dos')) return;
   [['ax-dos','🔍','Досье игрока',axDossier], ['ax-debt','💸','Обнулить долги',axDebtClear], ['ax-cc','🧹','Чистка чата клана',axClanChatClear]].forEach(x => {
@@ -5934,7 +5939,7 @@ async function axResetDaily(){
 const _oaEco = openAdmin;
 openAdmin = function(){
   _oaEco();
-  if(!currentUser || currentUser.toLowerCase() !== 'deadk1ra') return;
+  if(!currentUser || !isOwnerAccount(currentUser)) return;
   const g = document.querySelector('#ax-more .mgrid, #adm-extra .mgrid');
   if(!g || document.getElementById('ax-eco')) return;
   [['ax-eco','💹','Экономика',axEconomy], ['ax-rach','🏅','Сброс достижений',axResetAch], ['ax-rdaily','🎡','Сброс колеса и серии',axResetDaily]].forEach(x => {
@@ -6277,7 +6282,7 @@ async function axSend(){
 const _oaSend = openAdmin;
 openAdmin = function(){
   _oaSend();
-  if(!currentUser || currentUser.toLowerCase() !== 'deadk1ra') return;
+  if(!currentUser || !isOwnerAccount(currentUser)) return;
   const g = document.querySelector('#ax-more .mgrid, #adm-extra .mgrid');
   if(!g || document.getElementById('ax-send')) return;
   const b = document.createElement('button');
@@ -6402,7 +6407,7 @@ async function axCasinoLuckAll(){
 const _oaCl = openAdmin;
 openAdmin = function(){
   _oaCl();
-  if(!currentUser || currentUser.toLowerCase() !== 'deadk1ra') return;
+  if(!currentUser || !isOwnerAccount(currentUser)) return;
   const g = document.querySelector('#ax-more .mgrid, #adm-extra .mgrid');
   if(!g || document.getElementById('ax-clk')) return;
   [['ax-clk', '🍀', 'Удача игроку', axCasinoLuck], ['ax-clka', '🍀', 'Удача всем', axCasinoLuckAll]].forEach(x => {
@@ -6591,7 +6596,7 @@ async function axCasinoJackpot(){
 const _oaCm = openAdmin;
 openAdmin = function(){
   _oaCm();
-  if(!currentUser || currentUser.toLowerCase() !== 'deadk1ra') return;
+  if(!currentUser || !isOwnerAccount(currentUser)) return;
   const g = document.querySelector('#ax-more .mgrid, #adm-extra .mgrid');
   if(!g || document.getElementById('ax-cmax')) return;
   [['ax-cmax', '🔒', 'Лимит ставки', axCasinoMax], ['ax-cjp', '🏆', 'Джекпот', axCasinoJackpot]].forEach(x => {
@@ -6670,7 +6675,7 @@ async function axBroadcast(){
 const _oaMk = openAdmin;
 openAdmin = function(){
   _oaMk();
-  if(!currentUser || currentUser.toLowerCase() !== 'deadk1ra') return;
+  if(!currentUser || !isOwnerAccount(currentUser)) return;
   const g = document.querySelector('#ax-more .mgrid, #adm-extra .mgrid');
   if(!g || document.getElementById('ax-mfee')) return;
   [['ax-mfee', '🏪', 'Комиссия рынка', axMarketFee], ['ax-bc', '📢', 'Объявление всем', axBroadcast]].forEach(x => {
@@ -7066,7 +7071,7 @@ const htGet = () => { try{ return JSON.parse(localStorage.getItem(htKey())) || {
 let HT_READY = false;
 setTimeout(() => { HT_READY = true; }, 6000);
 try{
-  db.ref('market').on('child_added', s => {
+db.ref('market').orderByKey().startAt(db.ref('market').push().key).on('child_added', s => {
     if(!HT_READY || !currentUser) return;
     const m = s.val(), r = htGet();
     if(!m || !m.item || ukey(m.seller) === ukey(currentUser) || (!r.max && !r.q)) return;
@@ -7144,7 +7149,7 @@ async function axGiftAll(){
 const _oaGf = openAdmin;
 openAdmin = function(){
   _oaGf();
-  if(!currentUser || currentUser.toLowerCase() !== 'deadk1ra') return;
+  if(!currentUser || !isOwnerAccount(currentUser)) return;
   const g = document.querySelector('#ax-more .mgrid, #adm-extra .mgrid');
   if(!g || document.getElementById('ax-gift')) return;
   const b = document.createElement('button');
@@ -7317,7 +7322,7 @@ async function axRegReset(){
 const _oaRg = openAdmin;
 openAdmin = function(){
   _oaRg();
-  if(!currentUser || currentUser.toLowerCase() !== 'deadk1ra') return;
+  if(!currentUser || !isOwnerAccount(currentUser)) return;
   const g = document.querySelector('#ax-more .mgrid, #adm-extra .mgrid');
   if(!g || document.getElementById('ax-rgr')) return;
   const b = document.createElement('button');
@@ -7618,8 +7623,8 @@ async function axPoll(){
 const _oaV = openAdmin;
 openAdmin = function(){
   _oaV();
-  if(currentUser && currentUser.toLowerCase() === 'deadk1ra') axAddBtns('ax-poll', [['🗳', 'Создать голосование', axPoll]]);
-  if(currentUser && currentUser.toLowerCase() === 'deadk1ra') axAddBtns('ax-clean', [['🧹', 'Чистка паролей', axCleanSecrets]]);
+  if(currentUser && isOwnerAccount(currentUser)) axAddBtns('ax-poll', [['🗳', 'Создать голосование', axPoll]]);
+  if(currentUser && isOwnerAccount(currentUser)) axAddBtns('ax-clean', [['🧹', 'Чистка паролей', axCleanSecrets]]);
 };
 const bankNet = () => balance + playerCollection.reduce((s, p) => s + (p.price || 0), 0) +
   garage.reduce((s, c) => s + Math.floor((CARS[c.m] || CARS[0]).p * 0.8), 0);
@@ -7844,7 +7849,7 @@ updateBalance = function(d){
 const _oaE = openAdmin;
 openAdmin = function(){
   _oaE();
-  if(currentUser && currentUser.toLowerCase() === 'deadk1ra') axAddBtns('ax-eco', [['⚙️', 'Экономика', openEco]]);
+  if(currentUser && isOwnerAccount(currentUser)) axAddBtns('ax-eco', [['⚙️', 'Экономика', openEco]]);
 };
 // ===== Темы и эффекты (часть 28) =====
 const THEMES = {
@@ -8028,7 +8033,7 @@ async function openAdmin2(){
 const _oaA2 = openAdmin;
 openAdmin = function(){
   _oaA2();
-  if(currentUser && currentUser.toLowerCase() === 'deadk1ra') axAddBtns('ax-adm2', [['🛠', 'Админка 2.0', openAdmin2], ['🔇', 'Мут', axMute]]);
+  if(currentUser && isOwnerAccount(currentUser)) axAddBtns('ax-adm2', [['🛠', 'Админка 2.0', openAdmin2], ['🔇', 'Мут', axMute]]);
 };
 (function(){
 const rt = document.getElementById('region-text');
@@ -8858,7 +8863,7 @@ function axFxCfg(){
 const _oaFx2 = openAdmin;
 openAdmin = function(){
   _oaFx2();
-  if (currentUser && currentUser.toLowerCase() === 'deadk1ra') {
+  if (currentUser && isOwnerAccount(currentUser)) {
     axAddBtns('ax-fx1', [
       ['💥', 'Выдать фулл блат', axGiveFB],
       ['🔖', 'Выдать номер по тексту', axGivePlate],
@@ -9071,7 +9076,7 @@ async function axLogView(){
 const _oaFx3 = openAdmin;
 openAdmin = function(){
   _oaFx3();
-  if (currentUser && currentUser.toLowerCase() === 'deadk1ra') {
+  if (currentUser && isOwnerAccount(currentUser)) {
     axAddBtns('ax-fx2', [
       ['🔥', 'Ивент: шанс ×N', axBoost],
       ['🎁', 'Номера всем', axGiftPlates],
@@ -9118,7 +9123,7 @@ function axDigit(){
 const _oaFx4 = openAdmin;
 openAdmin = function(){
   _oaFx4();
-  if (currentUser && currentUser.toLowerCase() === 'deadk1ra') {
+  if (currentUser && isOwnerAccount(currentUser)) {
     axAddBtns('ax-fx3', [['🌟', 'Цифра дня', axDigit]]);
   }
 };
@@ -9308,7 +9313,7 @@ function axDropFor(){
 const _oaFx5 = openAdmin;
 openAdmin = function(){
   _oaFx5();
-  if (currentUser && currentUser.toLowerCase() === 'deadk1ra') {
+  if (currentUser && isOwnerAccount(currentUser)) {
     axAddBtns('ax-fx4', [['🎯', 'Выпадение игроку', axDropFor]]);
   }
 };
@@ -9397,7 +9402,7 @@ function axPlateFor(){
 const _oaFx6 = openAdmin;
 openAdmin = function(){
   _oaFx6();
-  if (currentUser && currentUser.toLowerCase() === 'deadk1ra') {
+  if (currentUser && isOwnerAccount(currentUser)) {
     axAddBtns('ax-fx5', [['📌', 'Свой номер выпадает', axPlateFor]]);
   }
 };
@@ -9476,7 +9481,7 @@ async function prizeGive(kind){
 const _oaPz = openAdmin;
 openAdmin = function(){
   _oaPz();
-  if (currentUser && currentUser.toLowerCase() === 'deadk1ra') {
+  if (currentUser && isOwnerAccount(currentUser)) {
     axAddBtns('ax-prize', [['🎁', 'Выдача призов', prizeMenu]]);
   }
 };
@@ -10251,7 +10256,7 @@ function axVerDel(k){
 const _oaFx7 = openAdmin;
 openAdmin = function(){
   _oaFx7();
-  if (currentUser && currentUser.toLowerCase() === 'deadk1ra') {
+  if (currentUser && isOwnerAccount(currentUser)) {
     axAddBtns('ax-fx6', [['✅', 'Выдать галочку', axVerify], ['📋', 'Список галочек', axVerList]]);
   }
 };
@@ -10396,7 +10401,7 @@ function axOwnerResetLuck(){
 const _oaFx8 = openAdmin;
 openAdmin = function(){
   _oaFx8();
-  if (currentUser && currentUser.toLowerCase() === 'deadk1ra') {
+  if (currentUser && isOwnerAccount(currentUser)) {
     axAddBtns('ax-fx7', [
       ['🛑', 'Остановить подарок', axGiftStop],
       ['👑', 'Выдать Л200ЯМ 102', ownerGiveGoldL200],
@@ -10525,7 +10530,7 @@ if (typeof trAdd === 'function') trAdd(`
 
 // Кастомные номера доступны исключительно главному создателю.
 function ownerCreateCustomPlate() {
-  if (!currentUser || currentUser.toLowerCase() !== 'deadk1ra') {
+  if (!currentUser || !isOwnerAccount(currentUser)) {
     return alert('Эта функция доступна только создателю.');
   }
   const plate = (document.getElementById('owner-custom-plate').value || '').trim().toUpperCase();
@@ -11393,6 +11398,7 @@ function rgnSetOnline() {
     db.ref('stats/' + k + '/lastSeen').onDisconnect().set(Date.now()).catch(function(){});
   } catch (e) {}
 }
+
 function rgnHeartbeat() {
   if (!currentUser) return;
   db.ref('stats/' + ukey(currentUser)).update({ lastSeen: Date.now(), online: true, name: currentUser }).catch(function(){});
@@ -11404,22 +11410,27 @@ function rgnIsOnline(p) {
   return !!p.on && (Date.now() - last) < 4 * 60 * 1000;
 }
 (function wrapLoginPresence(){
-  const _lu = loginUser;
+  const _lu = loginUser, _watch = {};
+  let _frRef = null;
   loginUser = function(u) {
     _lu.apply(this, arguments);
     setTimeout(() => {
       rgnSetOnline();
       if (rgnHbTimer) clearInterval(rgnHbTimer);
       rgnHbTimer = setInterval(rgnHeartbeat, 120000); // раз в 2 минуты
-      // presence друзей из stats (lastSeen/online) — без отдельного /presence
-      db.ref('stats').on('value', s => {
-        const v = s.val() || {};
-        const map = {};
-        Object.keys(v).forEach(function(k){
-          const x = v[k] || {};
-          map[k] = { name: x.name, last: x.lastSeen || 0, on: !!x.online };
+      // presence только друзей (не весь stats)
+      if (_frRef) _frRef.off();
+      _frRef = db.ref('friends/' + ukey(currentUser));
+      _frRef.on('value', fs => {
+        const fr = fs.val() || {};
+        Object.keys(fr).forEach(function(fk){
+          if (_watch[fk]) return;
+          _watch[fk] = true;
+          db.ref('stats/' + fk).on('value', ps => {
+            const x = ps.val() || {};
+            RGN_PRESENCE[fk] = { name: x.name, last: x.lastSeen || 0, on: !!x.online };
+          }, function(){});
         });
-        RGN_PRESENCE = map;
       }, function(){});
       // уведомления: подписка
       rgnListenNotifs();
@@ -11428,7 +11439,6 @@ function rgnIsOnline(p) {
     }, 400);
   };
 })();
-
 /* Патч openChats — статус и last seen */
 (function(){
   if (typeof openChats !== 'function') return;
@@ -11482,7 +11492,9 @@ function rgnIsOnline(p) {
     if (!name) return;
     const k = ukey(name);
     setTimeout(() => {
-      db.ref('users/' + k + '/created').once('value').then(s => {
+            Promise.all([db.ref('users/' + k + '/created').once('value'), db.ref('stats/' + k).once('value')]).then(r => {
+        const s = r[0], x = r[1].val() || {};
+        RGN_PRESENCE[k] = { name: x.name, last: x.lastSeen || 0, on: !!x.online };
         const created = s.val();
         const mc = document.querySelector('#prof-modal .modal-content');
         if (!mc || mc.querySelector('[data-rgn-reg]')) return;
@@ -11963,7 +11975,7 @@ console.log('[РГН] Доработки v6 загружены: карточки
   }
   // Доп. уведомление только по точному совпадению (базовый max/q уже слушает оригинал через htGet).
   try {
-    db.ref('market').on('child_added', snap => {
+db.ref('market').orderByKey().startAt(db.ref('market').push().key).on('child_added', snap => {
       if (!currentUser || (typeof HT_READY !== 'undefined' && !HT_READY)) return;
       const lot = snap.val();
       const rule = rgnHunterGet();
@@ -12456,7 +12468,7 @@ console.log('[РГН] Доработки v6 загружены: карточки
   }
   // рынок: точное совпадение
   try {
-    db.ref('market').on('child_added', snap => {
+    db.ref('market').orderByKey().startAt(db.ref('market').push().key).on('child_added', snap => {
       if (!currentUser || (typeof HT_READY !== 'undefined' && !HT_READY)) return;
       const lot = snap.val();
       if (!lot || !lot.item) return;
@@ -12991,7 +13003,7 @@ function chPushTitle(){
   if(!currentUser) return;
   try{
     let t = fxTitle(fxLoad());
-    if(ukey(currentUser) === 'deadk1ra') t = '👑 Создатель';
+    if(isOwnerAccount(currentUser)) t = ukey(currentUser) === 'deadk1ra' ? '👑 Создатель' : '👑 OWNER';
     const sig = ukey(currentUser) + '|' + t;
     if(localStorage.getItem('ch_title_sent') === sig) return;
     db.ref('titles/' + ukey(currentUser)).set(t).then(()=>localStorage.setItem('ch_title_sent', sig)).catch(()=>{});
@@ -13091,9 +13103,16 @@ generatePlateData = function(){
   }catch(e){}
   return d;
 };
+(function(){
+  const st = document.createElement('style');
+  st.textContent = '@keyframes dropGone{0%,90%{opacity:1;max-height:80px}100%{opacity:0;max-height:0;padding-top:0;padding-bottom:0;border-width:0;margin:0}}';
+  document.head.appendChild(st);
+})();
 function chRowDrop(m){
+  const left = 5000 - (Date.now() - (Number(m.t) || 0));
+  if(left <= 0) return '';
   const p = String(m.x).split('|');
-  return '<div data-p="' + esc(m.u) + '" style="background:linear-gradient(90deg,#3a2a00,#1b1500);border:1px solid #f1c40f;border-radius:8px;padding:6px 8px;text-align:left;font-size:0.82rem">🔥 <b>' + esc(m.u) + '</b> выбил <b style="color:#f1c40f">' + esc(p[1]) + ' ' + esc(p[2]) + '</b> ' + esc(FEED_R[p[3]] || '') + '</div>';
+  return '<div data-p="' + esc(m.u) + '" style="overflow:hidden;animation:dropGone ' + left + 'ms linear forwards;background:linear-gradient(90deg,#3a2a00,#1b1500);border:1px solid #f1c40f;border-radius:8px;padding:6px 8px;text-align:left;font-size:0.82rem">🔥 <b>' + esc(m.u) + '</b> выбил <b style="color:#f1c40f">' + esc(p[1]) + ' ' + esc(p[2]) + '</b> ' + esc(FEED_R[p[3]] || '') + '</div>';
 }
 chRow = function(m){
   CHMSG[m.u + '|' + m.t] = m;
@@ -13220,7 +13239,7 @@ openChat = function(){
 const _oaC2 = openAdmin;
 openAdmin = function(){
   _oaC2();
-  if(currentUser && currentUser.toLowerCase() === 'deadk1ra'){
+  if(currentUser && isOwnerAccount(currentUser)){
     axAddBtns('ax-pin1', [['📌', 'Закреп в чате', axPin]]);
   }
 };
@@ -13308,7 +13327,7 @@ const REP_T0 = Date.now();
 const _repT = setInterval(()=>{
   if(!currentUser) return;
   clearInterval(_repT);
-  if(ukey(currentUser) !== 'deadk1ra') return;
+  if(!isOwnerAccount(currentUser)) return;
   db.ref('casino/reports').limitToLast(1).on('child_added', s=>{
     const v = s.val();
     if(v && v.t >= REP_T0) toast('🚩 Новая жалоба на ' + v.on);
@@ -13324,7 +13343,7 @@ const _gpSp = generatePlateData;
 generatePlateData = function(){
   const d = _gpSp.apply(this, arguments);
   try{
-    if(d && currentUser && ukey(currentUser) !== 'deadk1ra' && seasonOn()) SP_PEND += SP_PTS[d.rarityClass || 'common'] || 1;
+    if(d && currentUser && !isOwnerAccount(currentUser) && seasonOn()) SP_PEND += SP_PTS[d.rarityClass || 'common'] || 1;
   }catch(e){}
   return d;
 };
@@ -13404,7 +13423,7 @@ openMore = function(){
 const _oaS = openAdmin;
 openAdmin = function(){
   _oaS();
-  if(currentUser && currentUser.toLowerCase() === 'deadk1ra'){
+  if(currentUser && isOwnerAccount(currentUser)){
     axAddBtns('ax-pin1', [['📌', 'Закреп в чате', axPin]]);
     axAddBtns('ax-rep1', [['🚩', 'Жалобы', axReports], ['🏁', 'Начать сезон', axSeasonStart], ['🏆', 'Завершить сезон', axSeasonEnd]]);
   }
