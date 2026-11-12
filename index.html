@@ -13428,6 +13428,26 @@ openAdmin = function(){
     axAddBtns('ax-rep1', [['🚩', 'Жалобы', axReports], ['🏁', 'Начать сезон', axSeasonStart], ['🏆', 'Завершить сезон', axSeasonEnd]]);
   }
 };
+// ===== Жест «назад»: сначала закрываем окна, выход только двойным =====
+(function backGuard(){
+  let lastBack = 0;
+  function openModals(){
+    return Array.from(document.querySelectorAll('.modal')).filter(function(m){
+      return m.id !== 'auth-modal' && getComputedStyle(m).display !== 'none';
+    });
+  }
+  function arm(){ try{ history.pushState({g:1}, '', location.href); }catch(e){} }
+  arm();
+  window.addEventListener('popstate', function(){
+    const ms = openModals();
+    if(ms.length){ ms[ms.length-1].style.display = 'none'; arm(); return; }
+    const now = Date.now();
+    if(now - lastBack < 2000){ history.back(); return; } // второй раз подряд — выход
+    lastBack = now;
+    arm();
+    if(typeof toastQ === 'function') toastQ('↩️ Назад', 'Свайп ещё раз — выйти из игры');
+  });
+})();
 </script>
 </body>
 </html>
