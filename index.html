@@ -1395,8 +1395,7 @@ db.ref('users/' + targetUser.toLowerCase()).once('value').then((snapshot) => {
 if (!snapshot.exists()) {
 return alert("Пользователь не найден в базе!");
 }
-let currentBal = snapshot.val().balance || 0;
-db.ref('users/' + targetUser.toLowerCase() + '/balance').set(currentBal + amount);
+db.ref('users/' + targetUser.toLowerCase() + '/balance').transaction(b => (b || 0) + amount);
 alert(`Игроку ${targetUser} успешно начислено ${formatMoney(amount)}!`);
 });
 }
@@ -13114,6 +13113,14 @@ function chRowDrop(m){
   const p = String(m.x).split('|');
   return '<div data-p="' + esc(m.u) + '" style="overflow:hidden;animation:dropGone ' + left + 'ms linear forwards;background:linear-gradient(90deg,#3a2a00,#1b1500);border:1px solid #f1c40f;border-radius:8px;padding:6px 8px;text-align:left;font-size:0.82rem">🔥 <b>' + esc(m.u) + '</b> выбил <b style="color:#f1c40f">' + esc(p[1]) + ' ' + esc(p[2]) + '</b> ' + esc(FEED_R[p[3]] || '') + '</div>';
 }
+function chLinkify(h){
+  return h.replace(/((?:https?:\/\/|www\.|t\.me\/)[^\s<]+)/gi, u => {
+    const href = /^https?:/i.test(u) ? u : 'https://' + u;
+    let t = u.replace(/^https?:\/\/(www\.)?/i, '');
+    if(t.length > 28) t = t.slice(0, 27).replace(/&[a-z#0-9]*$/i, '') + '…';
+    return '<a data-lnk="1" href="' + href + '" target="_blank" rel="noopener noreferrer" style="color:#3b9eff;text-decoration:underline;font-size:0.9em;word-break:break-all">' + t + '</a>';
+  });
+}
 chRow = function(m){
   CHMSG[m.u + '|' + m.t] = m;
   if(String(m.x).charAt(0) === '§') return chRowDrop(m);
@@ -13127,7 +13134,7 @@ chRow = function(m){
   const title = o.title ? '<div style="font-size:0.7rem;color:#f1c40f;line-height:1.2">' + esc(o.title) + '</div>' : '';
   const time = m.t ? '<span style="color:#666;font-size:0.65rem;margin-left:6px">' + new Date(m.t).toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'}) + '</span>' : '';
   const edited = m.e ? ' <i style="color:#888;font-size:0.7rem">(изм.)</i>' : '';
-  const body = esc(m.x).replace(/@([A-Za-zА-Яа-яЁё0-9_]{2,24})/g, (all, n)=>{
+      const body = chLinkify(esc(m.x)).replace(/(?<![\/\w])@([A-Za-zА-Яа-яЁё0-9_]{2,24})/g, (all, n)=>{
     const mine = n.toLowerCase() === me;
     return '<span style="color:' + (mine ? '#fff;background:#fe2c55' : '#3b9eff') + ';border-radius:4px;padding:0 3px">@' + n + '</span>';
   });
@@ -13177,6 +13184,7 @@ const _mnT = setInterval(()=>{ mnInit(); if(MN_ON) clearInterval(_mnT); }, 3000)
 // ===== Чат 2.0, часть 2: нажатия, меню реакций, закреп =====
 function chClick(e){
   const log = e.currentTarget;
+    if(e.target.closest && e.target.closest('a[data-lnk]')) return;
   if(Date.now() - (log.__ts || 0) > 450) return;
   const rx = e.target.closest('[data-rx]');
   const row = e.target.closest('[data-k]');
@@ -13211,7 +13219,7 @@ function chPinShow(){
     const v = s.val();
     if(v && v.x){
       p.style.cssText = 'background:#2a2412;border:1px solid #f1c40f;border-radius:8px;padding:6px 8px;margin-bottom:6px;font-size:0.8rem;text-align:left;color:#f5e6a0;word-break:break-word';
-      p.innerHTML = '📌 ' + esc(String(v.x).slice(0, 300));
+      p.innerHTML = '📌 ' + chLinkify(esc(String(v.x).slice(0, 300)));
     } else { p.style.cssText = 'display:none'; p.innerHTML = ''; }
   }).catch(()=>{});
 }
@@ -13447,6 +13455,18 @@ openAdmin = function(){
     arm();
     if(typeof toastQ === 'function') toastQ('↩️ Назад', 'Свайп ещё раз — выйти из игры');
   });
+})();
+(function(){
+  const LINK_RE = /(:\/\/|www\.|t\.me|\.(com|ru|net|org|me|io|gg|xyz|su|tv|ly|cc|info|club|site|online)([^a-z]|$))/i;
+  const _scL = sendChat;
+  sendChat = function(){
+    const i = document.getElementById('chat-inp');
+    if(i && LINK_RE.test(i.value) && ukey(currentUser) !== 'k1ravl'){
+      if(typeof toastQ === 'function') toastQ('🔗 Ссылки', 'Отправлять ссылки может только K1raVL');
+      return;
+    }
+    return _scL.apply(this, arguments);
+  };
 })();
 </script>
 </body>
