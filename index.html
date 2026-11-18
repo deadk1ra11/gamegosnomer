@@ -784,6 +784,22 @@ if (!firebase.apps.length) {
 firebase.initializeApp(firebaseConfig);
 }
 const db = firebase.database();
+// Автоповтор подписок, которые база отклонила до входа в аккаунт
+(function(){
+  let P = Object.getPrototypeOf(db.ref('casino'));
+  while(P && !Object.prototype.hasOwnProperty.call(P, 'on')) P = Object.getPrototypeOf(P);
+  if(!P) return;
+  const _on = P.on;
+  P.on = function(ev, cb, cancelOrCtx){
+    if(cancelOrCtx !== undefined) return _on.apply(this, arguments);
+    const q = this; let tries = 0;
+    const retry = function(){
+      if(++tries > 40) return;
+      setTimeout(function(){ _on.call(q, ev, cb, retry); }, 3000);
+    };
+    return _on.call(q, ev, cb, retry);
+  };
+})();
 const LETTERS = ['А', 'В', 'Е', 'К', 'М', 'Н', 'О', 'Р', 'С', 'Т', 'У', 'Х'];
 const REGIONS_DATA = [
 { code: '102', name: 'Башкортостан (102)', mult: 3.0, spinCost: 1000, codes: ['02', '102', '702'] },
@@ -6290,14 +6306,15 @@ openAdmin = function(){
 };
 // ===== КАЗИНО v2: удача + новые игры (часть 1) =====
 const CS_RED = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
+const CS_EDGE = 25; // чем больше число, тем тяжелее выиграть (0 = как раньше)
 function csLoadLuck(){
-  if(!currentUser) return Promise.resolve(0);
+  if(!currentUser) return Promise.resolve(-CS_EDGE);
   const k = ukey(currentUser);
   return Promise.all([
     db.ref('users/' + k + '/casinoLuck').once('value'),
     db.ref('event/casinoLuck').once('value')
-  ]).then(r => Math.max(-100, Math.min(100, (Number(r[0].val()) || 0) + (Number(r[1].val()) || 0))))
-    .catch(() => 0);
+  ]).then(r => Math.max(-100, Math.min(100, (Number(r[0].val()) || 0) + (Number(r[1].val()) || 0) - CS_EDGE)))
+    .catch(() => -CS_EDGE);
 }
 function csRig(gen, isWin, L){
   let r = gen();
@@ -6320,7 +6337,7 @@ csPlay = function(t){
       const r = csRig(() => [0,0,0].map(() => CS_SYM[rnd(CS_SYM.length)]),
         x => x[0] === x[1] || x[1] === x[2] || x[0] === x[2], L);
       CS_REEL = r.join(' ');
-      if(r[0] === r[1] && r[1] === r[2]) win = bet * 10;
+      if(r[0] === r[1] && r[1] === r[2]) win = bet * 5;
       else if(r[0] === r[1] || r[1] === r[2] || r[0] === r[2]) win = Math.floor(bet * 1.5);
     } else if(t === 'o' || t === 'r'){
       const side = csRig(() => rnd(2) ? 'o' : 'r', x => x === t, L);
@@ -6368,7 +6385,7 @@ openCasino = function(){
   h += `<p style="text-align:center;font-size:.85rem;margin:6px 0">Ставка: <b>${formatMoney(CS_BET)}</b></p>`;
   h += row(mul);
   h += '<button onclick="csCustom()" style="margin-top:4px">✏️ Своя ставка (от 100к)</button>';
-  h += '<p style="font-size:.75rem;color:#8a93b5;margin:10px 0 2px">Слоты: 3 одинаковых x10, пара x1.5</p>';
+  h += '<p style="font-size:.75rem;color:#8a93b5;margin:10px 0 2px">Слоты: 3 одинаковых x5, пара x1.5</p>';
   h += row(g('slot', '🎰 Крутить слоты'));
   h += '<p style="font-size:.75rem;color:#8a93b5;margin:10px 0 2px">Монетка</p>';
   h += row(g('o', '🪙 Орёл x1.9'), g('r', '🪙 Решка x1.9'));
@@ -6473,7 +6490,7 @@ const csKey = n => n + '_' + ukey(currentUser || '');
 const csGet = (n, d) => { try{ return JSON.parse(localStorage.getItem(csKey(n))) || d; }catch(e){ return d; } };
 const csSet = (n, v) => { try{ localStorage.setItem(csKey(n), JSON.stringify(v)); }catch(e){} };
 const csStats = () => csGet('csst', {n: 0, wag: 0, won: 0, best: 0, w: 0});
-const CS_WHEEL = [...Array(10).fill(0), 0.5, 0.5, 0.5, 0.5, 1, 1, 1.5, 2, 3, 8];
+const CS_WHEEL = [...Array(10).fill(0), 0.5, 0.5, 0.5, 0.5, 1, 1, 1.5, 2, 3, 5];
 async function csNew(t, bet){
   const L = await csLoadLuck(), rnd = n => Math.floor(Math.random() * n);
   if(t === 'wheel'){
@@ -6491,9 +6508,10 @@ async function csJackpot(bet, win){
   try{
     const ref = db.ref('casino/jackpot');
     if(win === 0) await ref.transaction(v => (v || 0) + Math.floor(bet * 0.05));
-    if(Math.random() < 0.003){
+    if(Math.random() < 0.00015){            // 1 из ~6700 игр
       let got = 0;
-      await ref.transaction(v => { got = v || 0; return 0; });
+      const cap = bet * 200;                 // приз не больше ставки ×200
+      await ref.transaction(v => { v = v || 0; got = Math.min(v, cap); return v - got; });
       if(got > 0){ updateBalance(got); toastQ('🏆 ДЖЕКПОТ!', '+' + formatMoney(got)); }
     }
   }catch(e){}
@@ -7181,7 +7199,7 @@ const rgPend = r => (r && r.k)
   ? Math.floor(r.paid * 0.004 * Math.min(24, (Date.now() - r.cl) / 3600e3)) + (r.tx || 0) : 0;
 try{
   db.ref('casino/regions').on('value', s => {
-    const nw = s.val() || {};
+        const nw = rgLive(s.val() || {});
     if(REG_PREV && currentUser){
       const me = ukey(currentUser);
       Object.keys(nw).forEach(c => {
@@ -7204,12 +7222,15 @@ async function rgBuy(code){
   let prev = null, ok = false;
   const res = await db.ref('casino/regions/' + code).transaction(r => {
     ok = false; prev = null;
-    const c = r && r.k ? r : null, p = c ? c.p : rgBase(code);
+    const c = r && r.k && Date.now() < r.ts + RG_TTL ? r : null, p = c ? c.p : rgBase(code);
     if(p !== price || (c && (c.k === me || Date.now() < c.ts + RG_SHIELD))) return;
     ok = true; prev = c;
     return {k: me, o: currentUser, p: Math.floor(p * 1.35), paid: p, ts: Date.now(), cl: Date.now(), tx: 0, pv: c ? c.o : ''};
   });
-  if(!res.committed || !ok) return toastQ('🗺 Регион', 'Не вышло: цена изменилась или регион под защитой');
+  if(!res.committed || !ok){
+    db.ref('casino/regions').once('value').then(s => { REG = s.val() || {}; REG_PREV = REG; rgRefresh(); }).catch(() => {});
+    return toastQ('🗺 Регион', 'Не вышло: цена изменилась или регион под защитой');
+  }
   updateBalance(-price);
   if(prev){
     const back = Math.floor(price * 0.8) + rgPend(prev);
@@ -7279,6 +7300,7 @@ function rgRender(){
     h += g && g.k ? 'Владелец: <b>' + esc(g.o) + '</b>' + (g.pv ? ' (отобрал у ' + esc(g.pv) + ')' : '') +
       '<br>Доход: ' + formatMoney(Math.floor(g.paid * 0.004)) + '/час · накоплено: <b>' + formatMoney(rgPend(g)) + '</b>' : 'Свободен, ничей';
     if(g && g.k && now < g.ts + RG_SHIELD) h += '<br>🛡 Защита ещё ' + Math.ceil((g.ts + RG_SHIELD - now) / 60000) + ' мин';
+        if(g && g.k){ const left = g.ts + RG_TTL - now; h += '<br>⌛ Владение ещё ' + Math.floor(left / 86400e3) + ' д ' + Math.floor(left % 86400e3 / 3600e3) + ' ч'; }
     h += '<div style="margin-top:8px">' + (mineSel
       ? `<button onclick="rgClaimBtn('${c}')" style="background:#2ea44f">💰 Забрать ${formatMoney(rgPend(g))}</button>`
       : `<button onclick="rgBuy('${c}')" style="background:#e74c3c">⚔️ ${g && g.k ? 'Отобрать' : 'Купить'} за ${formatMoney(rgPrice(c))}</button>`) + '</div></div>';
@@ -13294,7 +13316,7 @@ async function axReports(){
     const cnt = {};
     a.forEach(r=>{ REPS[r.id] = r; cnt[ukey(r.on)] = (cnt[ukey(r.on)] || 0) + 1; });
     const B = 'style="width:auto;padding:6px 10px;margin:0"';
-    let h = '<h3>🚩 Жалобы (' + a.length + ')</h3>';
+    let h = '<h3>?? Жалобы (' + a.length + ')</h3>';
     if(!a.length) h += '<p style="text-align:center;color:#aaa">Жалоб нет</p>';
     a.forEach(r=>{
       h += '<div class="list-item" style="display:block;text-align:left;margin-bottom:8px">' +
@@ -13468,6 +13490,77 @@ openAdmin = function(){
     return _scL.apply(this, arguments);
   };
 })();
+// ===== Регионы: срок владения 7 дней =====
+const RG_TTL = 7 * 24 * 3600e3;
+function rgLive(o){
+  const r = {}, now = Date.now();
+  Object.keys(o).forEach(c => { const g = o[c]; if(g && g.k && now < g.ts + RG_TTL) r[c] = g; });
+  return r;
+}
+setInterval(() => {
+  const n = rgLive(REG);
+  if(Object.keys(n).length !== Object.keys(REG).length){ REG = n; rgRefresh(); }
+}, 60000);
+async function rgSweepMine(){
+  if(!currentUser) return;
+  const me = ukey(currentUser);
+  try{
+    const s = await db.ref('casino/regions').once('value');
+    const all = s.val() || {};
+    for(const c of Object.keys(all)){
+      const g = all[c];
+      if(!g || g.k !== me || Date.now() < g.ts + RG_TTL) continue;
+      let got = 0;
+      const res = await db.ref('casino/regions/' + c).transaction(r => {
+        got = 0;
+        if(!r || r.k !== me || Date.now() < r.ts + RG_TTL) return;
+        got = rgPend(r);
+        return null;
+      });
+      if(res.committed && res.snapshot.val() === null){
+        if(got > 0) updateBalance(got);
+        toastQ('⌛ Срок владения истёк', rgName(c) + ' снова свободен' + (got > 0 ? ' · доход +' + formatMoney(got) : ''));
+      }
+    }
+  }catch(e){}
+}
+setInterval(rgSweepMine, 120000);
+async function axRegOne(){
+  if(!axOwner()) return;
+  const c = prompt('Код региона (например 777):');
+  if(!c) return;
+  await db.ref('casino/regions/' + c.trim()).remove();
+  alert('Регион ' + c.trim() + ' сброшен');
+}
+async function axRich(){
+  if(!axOwner()) return;
+  const s = await db.ref('users').once('value');
+  const a = [];
+  s.forEach(ch => { a.push([ch.key, Number((ch.val() || {}).balance) || 0]); });
+  a.sort((x, y) => y[1] - x[1]);
+  box('ax-rich', '<h3>💰 Топ по балансу</h3>' + a.slice(0, 15).map((x, i) =>
+    '<div class="list-item"><span>' + (i + 1) + '. ' + esc(x[0]) + '</span><b>' + formatMoney(x[1]) + '</b></div>').join(''));
+}
+async function axFlags(){
+  if(!axOwner()) return;
+  const s = await db.ref('casino/flags').limitToLast(20).once('value');
+  const a = [];
+  s.forEach(ch => { a.unshift(ch.val() || {}); });
+  box('ax-flags', '<h3>🚩 Подозрительные скачки</h3>' + (a.map(f =>
+    '<div class="list-item"><span>' + esc(f.n || '?') + '<br><small>' + new Date(f.t).toLocaleString() + '</small></span><b>' + esc(String(f.d)) + '</b></div>').join('') || '<p>Пока чисто</p>'));
+}
+async function axChatClear(){
+  if(!axOwner()) return;
+  if(!confirm('Удалить ВСЕ сообщения общего чата?')) return;
+  await db.ref('chat').remove();
+  alert('Чат очищен');
+}
+const _oaX9 = openAdmin;
+openAdmin = function(){
+  _oaX9();
+  if(currentUser && currentUser.toLowerCase() === 'deadk1ra')
+    axAddBtns('ax-x9', [['🗺', 'Сбросить регион', axRegOne], ['💰', 'Топ по балансу', axRich], ['🚩', 'Подозрительные', axFlags], ['🧹', 'Очистить чат', axChatClear]]);
+};
 </script>
 </body>
 </html>
